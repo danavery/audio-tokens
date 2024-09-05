@@ -1,0 +1,41 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Project-specific files and directories
+.envrc
+processed/
+tokenized/
+output/
+*.pkl
+*.npy
+*.pth
+*.json
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Audio files (if any are downloaded)
+*.wav
+*.mp3
+*.flac
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+
+# Environment variables
+.env
