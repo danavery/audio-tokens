@@ -113,14 +113,15 @@ class SpectrogramProcessor:
         return spectrogram
 
     def check_for_nan_inf(self, data, name="data"):
-        if np.isnan(data).any():
+        if torch.isnan(data).any():
             self.logger.info(f"Warning: NaN values found in {name}")
-            self.logger.info(f"Indices of NaN values: {np.where(np.isnan(data))}")
+            self.logger.info(f"Indices of NaN values: {torch.nonzero(torch.isnan(data), as_tuple=True)}")
             return True
-        if np.isinf(data).any():
+        if torch.isinf(data).any():
             self.logger.info(f"Warning: Inf values found in {name}")
-            self.logger.info(f"Indices of Inf values: {np.where(np.isinf(data))}")
+            self.logger.info(f"Indices of NaN values: {torch.nonzero(torch.isinf(data), as_tuple=True)}")
             return True
+        return False
 
 
 if __name__ == "__main__":
