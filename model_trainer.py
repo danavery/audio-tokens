@@ -292,9 +292,9 @@ class LSTMClassifier(nn.Module):
 
 
 if __name__ == "__main__":
-    config = ModelTrainerConfig(vocab_size=50)
+    config = ModelTrainerConfig(vocab_size=1000, learning_rate=1e-3)
     trainer = ModelTrainer(config)
     val_loss, val_accuracy = trainer.train()
-    logging.getLogger.info(
+    logging.getLogger().info(
         f"Final Validation Loss: {val_loss}, Final Validation Accuracy: {val_accuracy}"
     )
