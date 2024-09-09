@@ -2,7 +2,13 @@
 
 My current project: audio tokens!
 
-The idea: Audio classification has typically been done by producing spectrograms (usually mel-scale amplitude plots) and then using visual ML techniques on the images generated to identify relevant audio features with a CNN. Given the success of transformers in classifying and generating language sequences, more recently there have been attempts to use transformers for image and audio processing. In the audio world, the Audio Spectrogram Transformer ([AST](https://arxiv.org/abs/2104.01778)) is the most well-known attempt. It is based on the Vision Transformer ([ViT](https://arxiv.org/abs/2010.11929)), which chops an image into an overlapping grid, then uses the flattened grid elements as embeddings to train a transformer, skipping the tokenization process entirely. The AST does the same, but with audio spectrograms.
+### tl;dr
+
+Cluster STFT vectors to create an audio token vocabulary, then send token sequences for each example audio file through a transformer.
+
+### The concept
+
+Audio classification has typically been done by producing spectrograms (usually mel-scale amplitude plots) and then using visual ML techniques on the images generated to identify relevant audio features with a CNN. Given the success of transformers in classifying and generating language sequences, more recently there have been attempts to use transformers for image and audio processing. In the audio world, the Audio Spectrogram Transformer ([AST](https://arxiv.org/abs/2104.01778)) is the most well-known attempt. It is based on the Vision Transformer ([ViT](https://arxiv.org/abs/2010.11929)), which chops an image into an overlapping grid, then uses the flattened grid elements as embeddings to train a transformer, skipping the tokenization process entirely. The AST does the same, but with audio spectrograms.
 
 But I was thinking...unlike an image, an audio clip is really a sequence in the same way that a sentence is in a text document, and by slicing it up into 2D squares, it seems like some valuable time information might be lost, even with positional encodings added on--they're still 2D positions. So why not try to treat an audio clip as a sequence instead of an image? Then maybe you could train a transformer to classify audio without losing the essential time-based nature of sound?
 
