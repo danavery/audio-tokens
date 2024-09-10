@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from custom_bert_classifier import CustomBertClassifier
+from model_diagnostics import ModelDiagnostics
 from tokenized_spec_dataset import TokenizedSpecDataset
 
 logging.basicConfig(
@@ -43,6 +44,8 @@ class ModelTrainer:
         self.model = self._initialize_model()
         self.optimizer = self._initialize_optimizer()
         self.criterion = nn.BCEWithLogitsLoss()
+        self.diagnostics = ModelDiagnostics(model=self.model, criterion=self.criterion)
+        self.diagnostic_interval = 1
 
     def setup_train_val(self):
         self.train_files = list(Path(self.config.train_dir).glob('*.npy'))
@@ -112,8 +115,14 @@ class ModelTrainer:
                 epoch, train_loss, train_metrics, val_loss, val_metrics
             )
 
-            if val_metrics['mAP'] > best_metric:
-                best_metric = val_metrics['mAP']
+            if epoch % self.diagnostic_interval == 0:
+                self.diagnostics.check_gradient_flow(epoch=epoch, run_name=self.run_name)
+                self.diagnostics.plot_loss_landscape(
+                    epoch=epoch, val_loader=self.val_loader, run_name=self.run_name
+                )
+
+            if val_metrics["mAP"] > best_metric:
+                best_metric = val_metrics["mAP"]
                 self._save_best_model()
 
             if self._should_stop_early():
