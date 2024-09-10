@@ -11,6 +11,7 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import wandb
 from custom_bert_classifier import CustomBertClassifier
 from model_diagnostics import ModelDiagnostics
 from tokenized_spec_dataset import TokenizedSpecDataset
@@ -33,6 +34,7 @@ class ModelTrainerConfig:
     num_classes: int = 631
     train_dir: str = "tokenized/train/"
     val_dir: str = "tokenized/validation/"
+    use_wandb: bool = True
 
 
 class ModelTrainer:
@@ -46,6 +48,9 @@ class ModelTrainer:
         self.criterion = nn.BCEWithLogitsLoss()
         self.diagnostics = ModelDiagnostics(model=self.model, criterion=self.criterion)
         self.diagnostic_interval = 1
+        if self.config.use_wandb:
+            self.run_name = self._setup_wandb()
+            self.logger.info(f"wandb run name: {self.run_name}")
 
     def setup_train_val(self):
         self.train_files = list(Path(self.config.train_dir).glob("*.npy"))
@@ -199,6 +204,30 @@ class ModelTrainer:
         self.logger.info(
             f"Val Loss: {val_loss:.4f}, Val F1 (macro): {val_metrics['f1_score_macro']:.4f}, Val F1 (micro): {val_metrics['f1_score_micro']:.4f}, Val Hamming Loss: {val_metrics['hamming_loss']:.4f}, Val mAP: {val_metrics['mAP']:.4f}"
         )
+        if self.config.use_wandb:
+            wandb.log(
+                {
+                    "epoch": epoch,
+                    "train_loss": train_loss,
+                    "train_mAP": train_metrics["mAP"],
+                    "val_loss": val_loss,
+                    "val_mAP": val_metrics["mAP"],
+                }
+            )
+
+    def _setup_wandb(self):
+        run = wandb.init(
+            # set the wandb project where this run will be logged
+            project="audio-tokens",
+            # track hyperparameters and run metadata
+            config={
+                "learning_rate": self.config.learning_rate,
+                "architecture": self.model.__class__.__name__,
+                "epochs": self.config.epochs,
+                "vocab_size": self.config.vocab_size,
+            },
+        )
+        return run.name
 
     def _should_stop_early(self):
         """early stopping logic"""
@@ -303,7 +332,7 @@ class LSTMClassifier(nn.Module):
 
 
 if __name__ == "__main__":
-    config = ModelTrainerConfig(vocab_size=1000, learning_rate=1e-3)
+    config = ModelTrainerConfig(vocab_size=50, learning_rate=5e-5, batch_size=8)
     trainer = ModelTrainer(config)
     val_loss, val_accuracy = trainer.train()
     logging.getLogger().info(
