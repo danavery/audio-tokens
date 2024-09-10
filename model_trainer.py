@@ -48,8 +48,8 @@ class ModelTrainer:
         self.diagnostic_interval = 1
 
     def setup_train_val(self):
-        self.train_files = list(Path(self.config.train_dir).glob('*.npy'))
-        self.val_files = list(Path(self.config.val_dir).glob('*.npy'))
+        self.train_files = list(Path(self.config.train_dir).glob("*.npy"))
+        self.val_files = list(Path(self.config.val_dir).glob("*.npy"))
         self.logger.info(f"Training files: {len(self.train_files)}")
         self.logger.info(f"Validation files: {len(self.val_files)}")
 
@@ -144,7 +144,9 @@ class ModelTrainer:
         all_predictions = []
         all_labels = []
 
-        progress_bar = tqdm(data_loader, desc="Training" if is_training else "Validating")
+        progress_bar = tqdm(
+            data_loader, desc="Training" if is_training else "Validating"
+        )
         for batch in progress_bar:
             loss, predictions, labels = self._process_batch(batch, is_training)
             total_loss += loss
@@ -152,7 +154,7 @@ class ModelTrainer:
             all_labels.extend(labels.cpu().numpy())
 
             if is_training:
-                progress_bar.set_postfix({'loss': loss})
+                progress_bar.set_postfix({"loss": loss})
 
         # Concatenate all predictions and labels
         all_predictions = np.concatenate(all_predictions, axis=0)
@@ -184,13 +186,13 @@ class ModelTrainer:
             "f1_score_micro": f1_score(labels, binary_predictions, average="micro"),
             "f1_score_macro": f1_score(labels, binary_predictions, average="macro"),
             "hamming_loss": hamming_loss(labels, binary_predictions),
-            "mAP": average_precision_score(labels, predictions, average="macro")
+            "mAP": average_precision_score(labels, predictions, average="macro"),
         }
 
     def _log_epoch_results(
         self, epoch, train_loss, train_metrics, val_loss, val_metrics
     ):
-        self.logger.info(f"Epoch {epoch+1}")
+        self.logger.info(f"Epoch {epoch}")
         self.logger.info(
             f"Train Loss: {train_loss:.4f}, Train F1 (macro): {train_metrics['f1_score_macro']:.4f}, Train F1 (micro): {train_metrics['f1_score_micro']:.4f}, Train Hamming Loss: {train_metrics['hamming_loss']:.4f}, Train mAP: {train_metrics['mAP']:.4f}"
         )
@@ -202,7 +204,7 @@ class ModelTrainer:
         """early stopping logic"""
 
     def _save_best_model(self):
-        torch.save(self.model.state_dict(), 'output/best_model.pth')
+        torch.save(self.model.state_dict(), "output/best_model.pth")
 
     def get_model(self):
         model = CustomBertClassifier(
