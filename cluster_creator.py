@@ -81,5 +81,5 @@ class ClusterCreator:
 
 
 if __name__ == "__main__":
-    cluster_creator_config = ClusterCreatorConfig(n_clusters=50)
+    cluster_creator_config = ClusterCreatorConfig(n_clusters=50, niter=100)
     ClusterCreator(cluster_creator_config).run()
