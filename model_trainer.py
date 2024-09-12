@@ -1,4 +1,5 @@
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,17 +15,21 @@ from tqdm import tqdm
 import wandb
 from custom_bert_classifier import CustomBertClassifier
 from model_diagnostics import ModelDiagnostics
+from simple_token_classifier import SimpleTokenClassifier
 from tokenized_spec_dataset import TokenizedSpecDataset
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+os.environ["TORCH_SHOW_CPP_STACKTRACES"] = "1"
+
 
 @dataclass
 class ModelTrainerConfig:
     seq_dir: str = "tokenized/"
     vocab_size: int = 50
+    model_type: str = "bert"
     num_layers: int = 12
     epochs: int = 20
     hidden_size: int = 768
@@ -35,6 +40,7 @@ class ModelTrainerConfig:
     train_dir: str = "tokenized/train/"
     val_dir: str = "tokenized/validation/"
     use_wandb: bool = True
+    prediction_threshold: float = 0.2
 
 
 class ModelTrainer:
@@ -59,13 +65,19 @@ class ModelTrainer:
         self.logger.info(f"Validation files: {len(self.val_files)}")
 
     def _initialize_model(self):
-        model = CustomBertClassifier(
-            vocab_size=self.config.vocab_size,
-            num_hidden_layers=self.config.num_layers,
-            num_classes=self.config.num_classes,
-            device=self.device,
-            hidden_size=self.config.hidden_size,
-        )
+        if self.config.model_type == "simple":
+            return self._get_simple_model()
+        elif self.config.model_type == "bert":
+            model = CustomBertClassifier(
+                vocab_size=self.config.vocab_size,
+                num_hidden_layers=self.config.num_layers,
+                num_classes=self.config.num_classes,
+                device=self.device,
+                hidden_size=self.config.hidden_size,
+            )
+        else:
+            raise ValueError(f"Unknown model type: {self.config.model_type}")
+
         model.to(self.device)
         return model
 
@@ -121,10 +133,16 @@ class ModelTrainer:
             )
 
             if epoch % self.diagnostic_interval == 0:
-                self.diagnostics.check_gradient_flow(epoch=epoch, run_name=self.run_name)
-                self.diagnostics.plot_loss_landscape(
-                    epoch=epoch, val_loader=self.val_loader, run_name=self.run_name
+                self.logger.info("starting gradient recording")
+                self.diagnostics.check_gradient_flow(
+                    epoch=epoch, run_name=self.run_name
                 )
+                # # this is taking a very long time. investigate.
+                # self.logger.info("plotting loss landscape")
+                # self.diagnostics.plot_loss_landscape(
+                #     epoch=epoch, val_loader=self.val_loader, run_name=self.run_name
+                # )
+                # self.logger.info("done plotting")
 
             if val_metrics["mAP"] > best_metric:
                 best_metric = val_metrics["mAP"]
@@ -173,9 +191,9 @@ class ModelTrainer:
         outputs = self.model(input_ids, attention_mask=attention_masks)
         loss = self.criterion(outputs, labels)
 
-        self.logger.debug("Raw outputs:", outputs[0][:5].tolist())
-        self.logger.debug("Sigmoid outputs:", torch.sigmoid(outputs[0][:50]).tolist())
-        self.logger.debug("Labels:", labels[0][:50].tolist())
+        # self.logger.debug("Raw outputs:", outputs[0][:5].tolist())
+        # self.logger.debug("Sigmoid outputs:", torch.sigmoid(outputs[0][:50]).tolist())
+        # self.logger.debug("Labels:", labels[0][:50].tolist())
 
         if is_training:
             self.optimizer.zero_grad()
@@ -186,7 +204,9 @@ class ModelTrainer:
 
     def _compute_metrics(self, predictions, labels):
         # For F1 and Hamming loss, we need binary predictions
-        binary_predictions = (predictions > 0.5).astype(int)
+        binary_predictions = (predictions > self.config.prediction_threshold).astype(
+            int
+        )
         return {
             "f1_score_micro": f1_score(labels, binary_predictions, average="micro"),
             "f1_score_macro": f1_score(labels, binary_predictions, average="macro"),
@@ -225,6 +245,7 @@ class ModelTrainer:
                 "architecture": self.model.__class__.__name__,
                 "epochs": self.config.epochs,
                 "vocab_size": self.config.vocab_size,
+                "prediction_threshold": self.config.prediction_threshold,
             },
         )
         return run.name
@@ -235,7 +256,7 @@ class ModelTrainer:
     def _save_best_model(self):
         torch.save(self.model.state_dict(), "output/best_model.pth")
 
-    def get_model(self):
+    def _get_bert_model(self):
         model = CustomBertClassifier(
             vocab_size=self.vocab_size,
             num_hidden_layers=self.num_layers,
@@ -243,8 +264,15 @@ class ModelTrainer:
             device=self.device,
             dropout=self.dropout,
             hidden_size=self.hidden_size,
-        )
-        model.to(self.device)
+        ).to(self.device)
+        return model
+
+    def _get_simple_model(self):
+        model = SimpleTokenClassifier(
+            vocab_size=self.config.vocab_size,
+            hidden_size=self.config.hidden_size,
+            num_classes=self.config.num_classes,
+        ).to(self.device)
         return model
 
     def get_rnn_model(self, attention_mask=None):
@@ -332,7 +360,7 @@ class LSTMClassifier(nn.Module):
 
 
 if __name__ == "__main__":
-    config = ModelTrainerConfig(vocab_size=50, learning_rate=5e-5, batch_size=8)
+    config = ModelTrainerConfig(model_type="bert", epochs=100, vocab_size=5000, learning_rate=5e-5, batch_size=8)
     trainer = ModelTrainer(config)
     val_loss, val_accuracy = trainer.train()
     logging.getLogger().info(
