@@ -85,7 +85,7 @@ class ModelDiagnostics:
         )
 
         plt.tight_layout()
-        plt.savefig(f"gradient_flow_epoch_{epoch}.png")
+        plt.savefig(Path(self.output_dir) / f"gradient_flow_epoch_{epoch}.png")
         plt.close()
 
         Path(self.output_dir / run_name).mkdir(exist_ok=True)
