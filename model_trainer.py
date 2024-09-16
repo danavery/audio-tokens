@@ -15,6 +15,7 @@ from tqdm import tqdm
 import wandb
 from custom_bert_classifier import CustomBertClassifier
 from model_diagnostics import ModelDiagnostics
+from simple_lstm_token_classifier import SimpleLSTMTokenClassifier
 from simple_token_classifier import SimpleTokenClassifier
 from tokenized_spec_dataset import TokenizedSpecDataset
 
@@ -41,6 +42,8 @@ class ModelTrainerConfig:
     val_dir: str = "tokenized/validation/"
     use_wandb: bool = True
     prediction_threshold: float = 0.2
+    lstm_embed_dim: int = 128
+    lstm_hidden_dim: int = 256
 
 
 class ModelTrainer:
@@ -75,6 +78,8 @@ class ModelTrainer:
                 device=self.device,
                 hidden_size=self.config.hidden_size,
             )
+        elif self.config.model_type == "lstm":
+            return self._get_lstm_model()
         else:
             raise ValueError(f"Unknown model type: {self.config.model_type}")
 
@@ -275,30 +280,13 @@ class ModelTrainer:
         ).to(self.device)
         return model
 
-    def get_rnn_model(self, attention_mask=None):
-        embed_len = 144
-        hidden_dim = 144
-        n_layers = 10
-
-        model = RNNClassifier(
-            num_embeddings=self.vocab_size,
-            embed_len=embed_len,
-            hidden_dim=hidden_dim,
-            n_layers=n_layers,
-        )
-        model.to(self.device)
-        return model
-
-    def get_lstm_model(self, attention_mask=None):
-        embed_len = 144
-        hidden_dim = 144
-        n_layers = 30
-
-        model = LSTMClassifier(
-            num_embeddings=self.vocab_size,
-            embed_len=embed_len,
-            hidden_dim=hidden_dim,
-            n_layers=n_layers,
+    def _get_lstm_model(self):
+        model = SimpleLSTMTokenClassifier(
+            vocab_size=self.config.vocab_size,
+            embed_dim=self.config.lstm_embed_dim,
+            hidden_dim=self.config.lstm_hidden_dim,
+            num_layers=self.config.num_layers,
+            num_classes=self.config.num_classes,
         )
         model.to(self.device)
         return model
@@ -332,35 +320,15 @@ class RNNClassifier(nn.Module):
         return self.linear(output[:, -1])
 
 
-class LSTMClassifier(nn.Module):
-    def __init__(
-        self, num_embeddings, embed_len, hidden_dim, n_layers, target_classes=10
-    ):
-        super(LSTMClassifier, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.n_layers = n_layers
-        self.embedding_layer = nn.Embedding(
-            num_embeddings=num_embeddings, embedding_dim=embed_len
-        )
-        self.rnn = nn.LSTM(
-            input_size=embed_len,
-            hidden_size=hidden_dim,
-            num_layers=n_layers,
-            batch_first=True,
-        )
-        self.linear = nn.Linear(hidden_dim, target_classes)
-
-    def forward(self, X_batch, attention_mask=None):
-        embeddings = self.embedding_layer(X_batch)
-        hidden = torch.randn(
-            self.n_layers, X_batch.size(0), self.hidden_dim, device="cuda"
-        )
-        output, hidden = self.rnn(embeddings, hidden)
-        return self.linear(output[:, -1])
-
-
 if __name__ == "__main__":
-    config = ModelTrainerConfig(model_type="bert", epochs=100, vocab_size=5000, learning_rate=5e-5, batch_size=8)
+    config = ModelTrainerConfig(
+        model_type="lstm",
+        num_layers=1,
+        epochs=200,
+        vocab_size=5000,
+        learning_rate=1e-3,
+        batch_size=128,
+    )
     trainer = ModelTrainer(config)
     val_loss, val_accuracy = trainer.train()
     logging.getLogger().info(
