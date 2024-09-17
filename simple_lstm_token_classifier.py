@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class SimpleLSTMTokenClassifier(nn.Module):
     def __init__(
-        self, vocab_size, embed_dim, hidden_dim, num_layers, num_classes, dropout=0.5
+        self, vocab_size, embed_dim, hidden_dim, num_layers, num_classes, dropout=0.0
     ):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embed_dim)

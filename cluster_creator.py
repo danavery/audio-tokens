@@ -1,7 +1,5 @@
 import logging
 import pickle
-from dataclasses import dataclass
-from pathlib import Path
 
 import faiss
 import matplotlib.pyplot as plt
@@ -12,20 +10,11 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
+from audio_tokens_config import AudioTokensConfig
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
-
-
-@dataclass
-class ClusterCreatorConfig:
-    n_clusters: int = 500
-    train_spec_path: Path = Path("processed/train_specs.pkl")
-    niter: int = 20
-    centroids_path: Path = Path("output/centroids.npy")
-    use_convolution: bool = False
-    num_kernels: int = 8
-    kernel_size: int = 3
 
 
 class ClusterCreator:
@@ -50,7 +39,7 @@ class ClusterCreator:
         self.logger.info("starting clustering")
         kmeans = faiss.Kmeans(
             n_freq_bins,
-            self.config.n_clusters,
+            self.config.vocab_size,
             niter=self.config.niter,
             verbose=True,
             gpu=self.gpu,
@@ -108,5 +97,5 @@ class ClusterCreator:
 
 
 if __name__ == "__main__":
-    cluster_creator_config = ClusterCreatorConfig(n_clusters=50, niter=100)
-    ClusterCreator(cluster_creator_config).run()
+    config = AudioTokensConfig()
+    ClusterCreator(config).run()

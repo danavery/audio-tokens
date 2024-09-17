@@ -1,6 +1,5 @@
 import logging
 import os
-from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -13,6 +12,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import wandb
+from audio_tokens_config import AudioTokensConfig
 from custom_bert_classifier import CustomBertClassifier
 from model_diagnostics import ModelDiagnostics
 from simple_lstm_token_classifier import SimpleLSTMTokenClassifier
@@ -26,28 +26,8 @@ logging.basicConfig(
 os.environ["TORCH_SHOW_CPP_STACKTRACES"] = "1"
 
 
-@dataclass
-class ModelTrainerConfig:
-    seq_dir: str = "tokenized/"
-    vocab_size: int = 50
-    model_type: str = "bert"
-    num_layers: int = 12
-    epochs: int = 20
-    hidden_size: int = 768
-    batch_size: int = 16
-    num_workers: int = 8
-    learning_rate: float = 5e-5
-    num_classes: int = 631
-    train_dir: str = "tokenized/train/"
-    val_dir: str = "tokenized/validation/"
-    use_wandb: bool = True
-    prediction_threshold: float = 0.2
-    lstm_embed_dim: int = 128
-    lstm_hidden_dim: int = 256
-
-
 class ModelTrainer:
-    def __init__(self, config: ModelTrainerConfig):
+    def __init__(self, config: AudioTokensConfig):
         self.config = config
         self.logger = logging.getLogger()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -244,14 +224,8 @@ class ModelTrainer:
         run = wandb.init(
             # set the wandb project where this run will be logged
             project="audio-tokens",
-            # track hyperparameters and run metadata
-            config={
-                "learning_rate": self.config.learning_rate,
-                "architecture": self.model.__class__.__name__,
-                "epochs": self.config.epochs,
-                "vocab_size": self.config.vocab_size,
-                "prediction_threshold": self.config.prediction_threshold,
-            },
+            # track hyperparameters and run metadata. send it all!
+            config=self.config
         )
         return run.name
 
@@ -287,6 +261,7 @@ class ModelTrainer:
             hidden_dim=self.config.lstm_hidden_dim,
             num_layers=self.config.num_layers,
             num_classes=self.config.num_classes,
+            dropout=self.config.dropout,
         )
         model.to(self.device)
         return model
@@ -321,14 +296,7 @@ class RNNClassifier(nn.Module):
 
 
 if __name__ == "__main__":
-    config = ModelTrainerConfig(
-        model_type="lstm",
-        num_layers=1,
-        epochs=200,
-        vocab_size=5000,
-        learning_rate=1e-3,
-        batch_size=128,
-    )
+    config = AudioTokensConfig()
     trainer = ModelTrainer(config)
     val_loss, val_accuracy = trainer.train()
     logging.getLogger().info(

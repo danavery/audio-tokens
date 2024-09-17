@@ -1,7 +1,6 @@
 import logging
 import pickle
 from collections import Counter
-from dataclasses import dataclass
 from pathlib import Path
 
 import faiss
@@ -10,22 +9,15 @@ import numpy as np
 from scipy import stats
 from tqdm import tqdm
 
+from audio_tokens_config import AudioTokensConfig
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 
-@dataclass
-class SpecTokenizerConfig:
-    source_path: str = "processed/"
-    dest_path: str = "tokenized/"
-    centroid_path: str = "output/centroids.npy"
-    train_spec_path: str = "processed/train_specs.pkl"
-    val_spec_path: str = "processed/validation_specs.pkl"
-
-
 class SpecTokenizer:
-    def __init__(self, config: SpecTokenizerConfig):
+    def __init__(self, config: AudioTokensConfig):
         self.config = config
         self.source_path = Path(self.config.source_path)
         self.dest_path = Path(self.config.dest_path)
@@ -152,17 +144,24 @@ class SpecTokenizer:
         # Fit a line to the log-log plot (excluding the first and last 10% for better fit)
         start_fit = int(0.1 * len(frequencies))
         end_fit = int(0.9 * len(frequencies))
-        slope, intercept, r_value, p_value, std_err = stats.linregress(log_ranks[start_fit:end_fit], log_frequencies[start_fit:end_fit])
+        slope, intercept, r_value, p_value, std_err = stats.linregress(
+            log_ranks[start_fit:end_fit], log_frequencies[start_fit:end_fit]
+        )
 
         # Plot the distribution and the fitted line
         plt.figure(figsize=(12, 8))
-        plt.scatter(log_ranks, log_frequencies, alpha=0.5, label='Observed')
-        plt.plot(log_ranks, intercept + slope * log_ranks, color='red', label=f'Fitted (slope = {slope:.2f})')
-        plt.xlabel('Log Rank')
-        plt.ylabel('Log Frequency')
+        plt.scatter(log_ranks, log_frequencies, alpha=0.5, label="Observed")
+        plt.plot(
+            log_ranks,
+            intercept + slope * log_ranks,
+            color="red",
+            label=f"Fitted (slope = {slope:.2f})",
+        )
+        plt.xlabel("Log Rank")
+        plt.ylabel("Log Frequency")
         plt.title("Zipf's Law Analysis")
         plt.legend()
-        plt.savefig('zipf_law_analysis.png')
+        plt.savefig("zipf_law_analysis.png")
         plt.close()
 
         # Analyze the tail
@@ -171,12 +170,16 @@ class SpecTokenizer:
         tail_start = np.searchsorted(cumulative_freq, 0.8)  # Start of the last 20%
         tail_proportion = 1 - (tail_start / len(frequencies))
 
-        print(f"Zipf's law slope: {slope:.2f} (closer to -1 indicates closer fit to Zipf's law)")
+        print(
+            f"Zipf's law slope: {slope:.2f} (closer to -1 indicates closer fit to Zipf's law)"
+        )
         print(f"R-squared value: {r_value**2:.2f}")
-        print(f"Proportion of tokens in the tail (last 20% of occurrences): {tail_proportion:.2%}")
+        print(
+            f"Proportion of tokens in the tail (last 20% of occurrences): {tail_proportion:.2%}"
+        )
         print(f"Number of tokens accounting for 80% of occurrences: {tail_start}")
 
 
 if __name__ == "__main__":
-    spec_tokenizer_config = SpecTokenizerConfig()
+    spec_tokenizer_config = AudioTokensConfig()
     SpecTokenizer(spec_tokenizer_config).run()
