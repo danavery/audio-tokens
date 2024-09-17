@@ -6,8 +6,11 @@ from pathlib import Path
 import faiss
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
+import torch.nn as nn
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
+from tqdm import tqdm
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -19,21 +22,32 @@ class ClusterCreatorConfig:
     n_clusters: int = 500
     train_spec_path: Path = Path("processed/train_specs.pkl")
     niter: int = 20
-    centroids_path = Path("output/centroids.npy")
+    centroids_path: Path = Path("output/centroids.npy")
+    use_convolution: bool = False
+    num_kernels: int = 8
+    kernel_size: int = 3
 
 
 class ClusterCreator:
     def __init__(self, config):
+        self.logger = logging.getLogger(__name__)
         self.config = config
         self.gpu = faiss.get_num_gpus() > 0
-        self.logger = logging.getLogger(__name__)
+        if self.config.use_convolution:
+            self.conv = nn.Conv1D(
+                in_channels=1,
+                out_channels=self.config.num_kernels,
+                kernel_size=self.config.kernel_size,
+                padding=self.config.kernel_size // 2,
+            )
 
     def run(self):
-        time_slices_array = self.make_time_slices_array()
+        time_slices_array = self._make_time_slices_array()
         self.logger.info(f"{time_slices_array.shape=}")
         n_freq_bins = time_slices_array.shape[1]
 
         # Perform clustering
+        self.logger.info("starting clustering")
         kmeans = faiss.Kmeans(
             n_freq_bins,
             self.config.n_clusters,
@@ -49,20 +63,33 @@ class ClusterCreator:
         np.save(self.config.centroids_path, centroids)
         self.visualize_centroids(centroids)
 
-    def make_time_slices_array(self):
+    def apply_convolution(self, time_slice):
+        # Ensure time_slice is a PyTorch tensor and add batch and channel dimensions
+        time_slice = torch.tensor(time_slice).float().unsqueeze(0).unsqueeze(0)
+        # Apply convolution
+        conv_output = self.conv(time_slice)
+        # Remove batch dimension and convert back to numpy
+        return conv_output.squeeze(0).detach().numpy()
+
+    def _make_time_slices_array(self):
         time_slices = []
         with open(self.config.train_spec_path, "rb") as f:
             specs = pickle.load(f)
-        for spec_record in specs:
+        for spec_record in tqdm(specs):
             self.logger.debug(f"{spec_record['filename']}:")
             spec = spec_record["spec"].T
             self.logger.debug(spec.shape)
             if spec.ndim != 2:
                 raise ValueError(f"Invalid spectrogram shape: {spec.shape}")
-            time_slices.append(spec)
-        self.logger.info(len(time_slices))
 
-        return np.vstack(time_slices)
+            if self.config.use_convolution:
+                for time_slice in spec:
+                    conv_output = self.apply_convolution(time_slice)
+                    time_slices.append(conv_output.flatten())
+            else:
+                time_slices.extend(spec)
+        self.logger.info(len(time_slices))
+        return np.array(time_slices)
 
     def visualize_centroids(self, centroids):
         pca = PCA(n_components=2)
