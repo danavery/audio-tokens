@@ -2,6 +2,7 @@ import logging
 import pickle
 from collections import Counter
 from pathlib import Path
+import shutil
 
 import faiss
 import matplotlib.pyplot as plt
@@ -20,7 +21,7 @@ class SpecTokenizer:
     def __init__(self, config: AudioTokensConfig):
         self.config = config
         self.source_path = Path(self.config.source_path)
-        self.dest_path = Path(self.config.dest_path)
+        self.dest_tokenized_path = Path(self.config.dest_tokenized_path)
         self.centroid_path = Path(self.config.centroid_path)
         self.logger = logging.getLogger()
 
@@ -31,8 +32,9 @@ class SpecTokenizer:
             ("train", self.config.train_spec_path),
             ("validation", self.config.val_spec_path),
         ]:
-            tokenized_dir = self.dest_path / split
-            tokenized_dir.mkdir(parents=True, exist_ok=True)
+            tokenized_dir = self.dest_tokenized_path / split
+            shutil.rmtree(tokenized_dir)
+            tokenized_dir.mkdir(parents=True)
             self.logger.info(f"Tokenizing {split} set: {path} --> {tokenized_dir}")
             all_tokens = self.tokenize(index, path, tokenized_dir)
             if split == "train":

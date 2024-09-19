@@ -1,22 +1,36 @@
+import logging
 from dataclasses import dataclass, field
-from typing import List
 from pathlib import Path
+from typing import List
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 @dataclass
 class AudioTokensConfig:
+    # AudiosetMetadataProcessor
+    csv_index_files = ["metadata/balanced_train_segments.csv", "metadata/unbalanced_train_segments.csv"]
+    ontology_json_file = "metadata/ontology.json"
+    dataset_ratio = 0.01  # portion of all ytids to use
+    validation_ratio = 0.1  # portion of dataset to use as validation set
+    random_seed = 42
+
+    # AudiosetMetadataProcessor and SpectrogramProcessor
+    split_file: str = "output/bal_unbal_train_val_data_split.json"
+
     # SpectrogramProcessor
     source_ytids: List[str] = field(default_factory=list)
     source_parent: str = "/media/davery/audioset"
-    source_set: str = "bal_train"
-    dest_path: str = "processed/"
+    source_sets: List[str] = field(default_factory=lambda: ["bal_train", "unbal_train"])
+    dest_spec_path: str = "processed/"
     common_sr: int = 22050
     normalize: bool = True
     n_mels: int = 64
     n_fft: int = 256
     hop_length: int = 128
     n_segments: int = 0
-    split_file: str = "output/bal_train_data_split.json"
 
     # ClusterCreator and ModelTrainer
     vocab_size: int = 500
@@ -31,7 +45,7 @@ class AudioTokensConfig:
 
     # SpecTokenizer config
     source_path: str = "processed/"
-    dest_path: str = "tokenized/"
+    dest_tokenized_path: str = "tokenized/"
     centroid_path: str = "output/centroids.npy"
     train_spec_path: str = "processed/train_specs.pkl"
     val_spec_path: str = "processed/validation_specs.pkl"

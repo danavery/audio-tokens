@@ -1,6 +1,5 @@
 import logging
 import os
-from pathlib import Path
 
 import numpy as np
 import torch
@@ -13,6 +12,7 @@ from tqdm import tqdm
 
 import wandb
 from audio_tokens_config import AudioTokensConfig
+from audioset_metadata_processor import AudiosetMetadataProcessor
 from custom_bert_classifier import CustomBertClassifier
 from model_diagnostics import ModelDiagnostics
 from simple_lstm_token_classifier import SimpleLSTMTokenClassifier
@@ -31,7 +31,7 @@ class ModelTrainer:
         self.config = config
         self.logger = logging.getLogger()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.setup_train_val()
+        # self.setup_train_val()
         self.model = self._initialize_model()
         self.optimizer = self._initialize_optimizer()
         self.criterion = nn.BCEWithLogitsLoss()
@@ -40,12 +40,14 @@ class ModelTrainer:
         if self.config.use_wandb:
             self.run_name = self._setup_wandb()
             self.logger.info(f"wandb run name: {self.run_name}")
+        else:
+            self.run_name = "no-wandb"
 
-    def setup_train_val(self):
-        self.train_files = list(Path(self.config.train_dir).glob("*.npy"))
-        self.val_files = list(Path(self.config.val_dir).glob("*.npy"))
-        self.logger.info(f"Training files: {len(self.train_files)}")
-        self.logger.info(f"Validation files: {len(self.val_files)}")
+    # def setup_train_val(self):
+    #     self.train_files = list(Path(self.config.train_dir).glob("*.npy"))
+    #     self.val_files = list(Path(self.config.val_dir).glob("*.npy"))
+    #     self.logger.info(f"Training files: {len(self.train_files)}")
+    #     self.logger.info(f"Validation files: {len(self.val_files)}")
 
     def _initialize_model(self):
         if self.config.model_type == "simple":
@@ -70,11 +72,12 @@ class ModelTrainer:
         return AdamW(self.model.parameters(), lr=self.config.learning_rate)
 
     def _initialize_data_loaders(self):
+        metadata_manager = AudiosetMetadataProcessor(self.config)
         train_dataset = TokenizedSpecDataset(
-            self.train_files, num_classes=self.config.num_classes
+            config, metadata_manager, split="train",
         )
         val_dataset = TokenizedSpecDataset(
-            self.val_files, num_classes=self.config.num_classes
+            config, metadata_manager, split="validation"
         )
 
         train_loader = DataLoader(
@@ -92,17 +95,16 @@ class ModelTrainer:
         )
         return train_loader, val_loader
 
-    @staticmethod
-    def collate_fn(batch):
+    def collate_fn(self, batch):
         input_ids = [item[0][:512] for item in batch]
         attention_masks = [item[1][:512] for item in batch]
         labels = [item[2] for item in batch]
 
-        input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0)
+        input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0).long()
         attention_masks = pad_sequence(
             attention_masks, batch_first=True, padding_value=0
-        )
-        labels = torch.stack(labels)
+        ).float()
+        labels = torch.stack(labels).float()
         return input_ids, attention_masks, labels
 
     def train(self):
@@ -239,7 +241,7 @@ class ModelTrainer:
         model = CustomBertClassifier(
             vocab_size=self.vocab_size,
             num_hidden_layers=self.num_layers,
-            num_classes=10,
+            num_classes=self.config.num_classes,
             device=self.device,
             dropout=self.dropout,
             hidden_size=self.hidden_size,

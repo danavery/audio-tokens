@@ -3,6 +3,7 @@ import logging
 import os
 import pickle
 from pathlib import Path
+import shutil
 
 import torch
 import torchaudio
@@ -11,10 +12,6 @@ from tqdm import tqdm
 
 from audio_tokens_config import AudioTokensConfig
 from audioset_metadata_processor import AudiosetMetadataProcessor
-
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
 
 
 class SpectrogramProcessor:
@@ -35,8 +32,9 @@ class SpectrogramProcessor:
         for split in ["train", "validation"]:
             self.logger.info(f"Creating {split} spectrograms")
             specs = self.populate_specs(self.data_split[split])
-            output_file = Path(self.config.dest_path) / f"{split}_specs.pkl"
-            Path(self.config.dest_path).mkdir(exist_ok=True)
+            output_file = Path(self.config.dest_spec_path) / f"{split}_specs.pkl"
+            shutil.rmtree(output_file, ignore_errors=True)
+            Path(self.config.dest_spec_path).mkdir(exist_ok=True)
             with open(output_file, "wb") as f:
                 pickle.dump(specs, f)
             self.logger.info(
@@ -45,23 +43,29 @@ class SpectrogramProcessor:
 
     def populate_specs(self, source_files):
         specs = []
-        for i, audio_file_path in enumerate(tqdm(source_files)):
+        for i, ytid in enumerate(tqdm(source_files)):
             try:
-                audio_file_path = f"{self.config.source_parent}/{self.config.source_set}/{audio_file_path}"
-                waveform = self.preprocess_waveform(audio_file_path)
-            except RuntimeError as e:
-                if str(e) == "Failed to decode audio.":
-                    self.logger.info(f"{e}: {audio_file_path}")
-                    continue
+                for source_set in self.config.source_sets:
+                    audio_file_path = Path(f"{self.config.source_parent}/{source_set}/{ytid[:2]}/{ytid}.flac")
+                    # self.logger.info(audio_file_path)
+                    if audio_file_path.exists():
+                        found = True
+                        break
+                    else:
+                        found = False
+                if found:
+                    waveform = self.preprocess_waveform(audio_file_path)
                 else:
-                    raise
+                    self.logger.debug(f"Not found: {audio_file_path}")
+                    continue
+            except RuntimeError as e:
+                self.logger.debug(f"{e}: {audio_file_path}")
 
             spec = self.generate_mel_spectrogram(waveform)
-
             if self.config.normalize:
                 spec = self.normalize_spectrogram(spec)
             if self.check_for_nan_inf(spec, f"spectrogram {i}"):
-                self.logger.info(f"Bad file: {audio_file_path}")
+                self.logger.debug(f"Bad file: {audio_file_path}")
                 continue
             specs.append({"filename": os.path.basename(audio_file_path), "spec": spec})
         return specs
@@ -99,14 +103,14 @@ class SpectrogramProcessor:
 
     def check_for_nan_inf(self, data, name="data"):
         if torch.isnan(data).any():
-            self.logger.info(f"Warning: NaN values found in {name}")
-            self.logger.info(
+            self.logger.debug(f"Warning: NaN values found in {name}")
+            self.logger.debug(
                 f"Indices of NaN values: {torch.nonzero(torch.isnan(data), as_tuple=True)}"
             )
             return True
         if torch.isinf(data).any():
-            self.logger.info(f"Warning: Inf values found in {name}")
-            self.logger.info(
+            self.logger.debug(f"Warning: Inf values found in {name}")
+            self.logger.debug(
                 f"Indices of NaN values: {torch.nonzero(torch.isinf(data), as_tuple=True)}"
             )
             return True
@@ -114,7 +118,7 @@ class SpectrogramProcessor:
 
 
 if __name__ == "__main__":
-    source_ytids = AudiosetMetadataProcessor().ytid_labels.keys()
+    config = AudioTokensConfig()
+    source_ytids = AudiosetMetadataProcessor(config).ytid_labels.keys()
     logging.getLogger().info(len(source_ytids))
-    spec_processor_config = AudioTokensConfig()
-    SpectrogramProcessor(spec_processor_config).run()
+    SpectrogramProcessor(config).run()
