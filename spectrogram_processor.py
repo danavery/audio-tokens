@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-import pickle
+import numpy as np
 from pathlib import Path
 import shutil
 
@@ -31,22 +31,36 @@ class SpectrogramProcessor:
     def run(self):
         for split in ["train", "validation"]:
             self.logger.info(f"Creating {split} spectrograms")
-            specs = self.populate_specs(self.data_split[split])
-            output_file = Path(self.config.dest_spec_path) / f"{split}_specs.pkl"
-            shutil.rmtree(output_file, ignore_errors=True)
-            Path(self.config.dest_spec_path).mkdir(exist_ok=True)
-            with open(output_file, "wb") as f:
-                pickle.dump(specs, f)
+            output_dir = Path(self.config.dest_spec_path) / split
+            shutil.rmtree(output_dir, ignore_errors=True)
+            output_dir.mkdir(parents=True)
+
+            ytids = self.data_split[split]
+            for i in tqdm(
+                range(0, len(ytids), self.config.spectrogram_batch_size),
+                total=len(ytids) // self.config.spectrogram_batch_size,
+                position=0,
+            ):
+                batch_ytids = ytids[i : i + self.config.spectrogram_batch_size]
+                specs = self.populate_specs(batch_ytids)
+
+                for spec in specs:
+                    output_file = output_dir / f"{spec['filename']}.npy"
+                    np.save(output_file, spec["spec"])
             self.logger.info(
-                f"{split.capitalize()} spectrograms saved to: {output_file}"
+                f"{split.capitalize()} spectrograms saved to: {self.config.dest_spec_path}"
             )
 
     def populate_specs(self, source_files):
         specs = []
-        for i, ytid in enumerate(tqdm(source_files)):
+        for i, ytid in tqdm(
+            enumerate(source_files), position=1, total=len(source_files)
+        ):
             try:
                 for source_set in self.config.source_sets:
-                    audio_file_path = Path(f"{self.config.source_parent}/{source_set}/{ytid[:2]}/{ytid}.flac")
+                    audio_file_path = Path(
+                        f"{self.config.source_parent}/{source_set}/{ytid[:2]}/{ytid}.flac"
+                    )
                     # self.logger.info(audio_file_path)
                     if audio_file_path.exists():
                         found = True

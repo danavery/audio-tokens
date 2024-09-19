@@ -23,7 +23,7 @@ class AudioTokensConfig:
     # SpectrogramProcessor
     source_ytids: List[str] = field(default_factory=list)
     source_parent: str = "/media/davery/audioset"
-    source_sets: List[str] = field(default_factory=lambda: ["bal_train", "unbal_train"])
+    source_sets: List[str] = field(default_factory=lambda: ["unbal_train", "bal_train"])
     dest_spec_path: str = "processed/"
     common_sr: int = 22050
     normalize: bool = True
@@ -31,6 +31,7 @@ class AudioTokensConfig:
     n_fft: int = 256
     hop_length: int = 128
     n_segments: int = 0
+    spectrogram_batch_size: int = 10000
 
     # ClusterCreator and ModelTrainer
     vocab_size: int = 500
@@ -44,6 +45,7 @@ class AudioTokensConfig:
     use_convolution: bool = True
     num_kernels: int = 8
     kernel_size: int = 5
+    clustering_batch_size: int = 1000000
 
     # SpecTokenizer config
     source_path: str = "processed/"
