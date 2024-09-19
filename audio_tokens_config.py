@@ -13,7 +13,7 @@ class AudioTokensConfig:
     # AudiosetMetadataProcessor
     csv_index_files = ["metadata/balanced_train_segments.csv", "metadata/unbalanced_train_segments.csv"]
     ontology_json_file = "metadata/ontology.json"
-    dataset_ratio = 0.01  # portion of all ytids to use
+    dataset_ratio = 0.02  # portion of all ytids to use
     validation_ratio = 0.1  # portion of dataset to use as validation set
     random_seed = 42
 
@@ -35,11 +35,13 @@ class AudioTokensConfig:
     # ClusterCreator and ModelTrainer
     vocab_size: int = 500
 
-    # ClusterCreator
+    # ClusterCreator and SpecTokenizer
     train_spec_path: Path = Path("processed/train_specs.pkl")
+
+    # ClusterCreator
     niter: int = 20
     centroids_path: Path = Path("output/centroids.npy")
-    use_convolution: bool = False
+    use_convolution: bool = True
     num_kernels: int = 8
     kernel_size: int = 5
 

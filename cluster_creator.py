@@ -23,7 +23,7 @@ class ClusterCreator:
         self.config = config
         self.gpu = faiss.get_num_gpus() > 0
         if self.config.use_convolution:
-            self.conv = nn.Conv1D(
+            self.conv = nn.Conv1d(
                 in_channels=1,
                 out_channels=self.config.num_kernels,
                 kernel_size=self.config.kernel_size,
