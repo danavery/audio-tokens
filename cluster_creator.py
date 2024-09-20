@@ -11,6 +11,7 @@ from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
 from audio_tokens_config import AudioTokensConfig
+from set_seed import set_seed
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -21,14 +22,16 @@ class ClusterCreator:
     def __init__(self, config):
         self.logger = logging.getLogger(__name__)
         self.config = config
+        set_seed(self.config.random_seed)
         self.gpu = faiss.get_num_gpus() > 0
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if self.config.use_convolution:
             self.conv = nn.Conv1d(
                 in_channels=1,
                 out_channels=self.config.num_kernels,
                 kernel_size=self.config.kernel_size,
                 padding=self.config.kernel_size // 2,
-            )
+            ).to(self.device)
 
     def run(self):
         n_freq_bins = self.config.n_mels
@@ -56,12 +59,20 @@ class ClusterCreator:
         np.save(self.config.centroids_path, centroids)
         self.visualize_centroids(centroids)
 
-    def apply_convolution(self, time_slice):
-        # Ensure time_slice is a PyTorch tensor and add batch and channel dimensions
-        time_slice = torch.tensor(time_slice).float().unsqueeze(0).unsqueeze(0)
-        conv_output = self.conv(time_slice)
+    def apply_convolution(self, time_slice_batch):
+        time_slice_batch = np.array(time_slice_batch)
+        time_slice_batch = (
+            torch.tensor(time_slice_batch, device=self.device).float().unsqueeze(1)
+        )
+        conv_output = self.conv(time_slice_batch)
         # Remove batch dimension and convert back to numpy
-        return conv_output.squeeze(0).detach().numpy()
+        return (
+            conv_output.transpose(1, 2)
+            .reshape(-1, self.config.num_kernels * self.config.n_mels)
+            .cpu()
+            .detach()
+            .numpy()
+        )
 
     def _batch_generator(self, batch_size):
         spec_dir = Path(self.config.source_path) / "train"
@@ -69,20 +80,20 @@ class ClusterCreator:
         for file in tqdm(spec_dir.glob("*.npy")):
             spec = np.load(file)
             spec = spec.T
+            batch.extend(spec)
 
-            if self.config.use_convolution:
-                for time_slice in spec:
-                    conv_output = self.apply_convolution(time_slice)
-                    batch.append(conv_output.flatten())
-            else:
-                batch.extend(spec)
-
-            if len(batch) >= batch_size:
-                yield np.array(batch, dtype=np.float32)
-                batch = []
+            while len(batch) >= batch_size:
+                if self.config.use_convolution:
+                    yield self.apply_convolution(batch[:batch_size])
+                else:
+                    yield np.array(batch[:batch_size], dtype=np.float32)
+                batch = batch[batch_size:]
 
         if batch:
-            yield np.array(batch, dtype=np.float32)
+            if self.config.use_convolution:
+                yield self.apply_convolution(batch)
+            else:
+                yield np.array(batch, dtype=np.float32)
 
     def visualize_centroids(self, centroids):
         pca = PCA(n_components=2)
@@ -90,7 +101,7 @@ class ClusterCreator:
         plt.figure(figsize=(10, 8))
         plt.scatter(centroids_2d[:, 0], centroids_2d[:, 1])
         plt.title("2D PCA of Centroids")
-        plt.show()
+        # plt.show()
         plt.savefig("output/centroids_visualization.png")
         plt.close()
         self.logger.info("Centroids visualization saved")
@@ -101,5 +112,6 @@ class ClusterCreator:
 
 
 if __name__ == "__main__":
+    set_seed()
     config = AudioTokensConfig()
     ClusterCreator(config).run()

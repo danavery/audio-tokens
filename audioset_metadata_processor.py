@@ -4,6 +4,7 @@ import logging
 import random
 
 from audio_tokens_config import AudioTokensConfig
+from set_seed import set_seed
 
 
 class AudiosetMetadataProcessor:
@@ -16,6 +17,7 @@ class AudiosetMetadataProcessor:
 
     def __init__(self, config):
         self.config = config
+        set_seed(self.config.random_seed)
         self.logger = logging.getLogger()
         self.label_index = {}
         self.index_label = {}
@@ -47,7 +49,7 @@ class AudiosetMetadataProcessor:
     def create_split_file(self):
         all_ytids = list(self.ytid_labels.keys())
         dataset_size = int(len(all_ytids) * self.config.dataset_ratio)
-        random.Random(self.config.random_seed).shuffle(all_ytids)
+        random.shuffle(all_ytids)
         ytids = all_ytids[:dataset_size]
         split_index = int(len(ytids) * (1 - self.config.validation_ratio))
         split_data = {

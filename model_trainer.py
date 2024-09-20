@@ -18,6 +18,7 @@ from model_diagnostics import ModelDiagnostics
 from simple_lstm_token_classifier import SimpleLSTMTokenClassifier
 from simple_token_classifier import SimpleTokenClassifier
 from tokenized_spec_dataset import TokenizedSpecDataset
+from set_seed import set_seed
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -29,6 +30,7 @@ os.environ["TORCH_SHOW_CPP_STACKTRACES"] = "1"
 class ModelTrainer:
     def __init__(self, config: AudioTokensConfig):
         self.config = config
+        set_seed(self.config.random_seed)
         self.logger = logging.getLogger()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.setup_train_val()

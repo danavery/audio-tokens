@@ -45,7 +45,8 @@ class SpectrogramProcessor:
                 specs = self.populate_specs(batch_ytids)
 
                 for spec in specs:
-                    output_file = output_dir / f"{spec['filename']}.npy"
+                    ytid = spec["filename"].replace(".flac", "")
+                    output_file = output_dir / f"{ytid}.npy"
                     np.save(output_file, spec["spec"])
             self.logger.info(
                 f"{split.capitalize()} spectrograms saved to: {self.config.dest_spec_path}"

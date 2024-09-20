@@ -1,16 +1,18 @@
 import logging
-import pickle
+import shutil
 from collections import Counter
 from pathlib import Path
-import shutil
 
 import faiss
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
+import torch
+import torch.nn as nn
 from tqdm import tqdm
 
 from audio_tokens_config import AudioTokensConfig
+from set_seed import set_seed
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -20,23 +22,32 @@ logging.basicConfig(
 class SpecTokenizer:
     def __init__(self, config: AudioTokensConfig):
         self.config = config
+        set_seed(self.config.random_seed)
         self.source_path = Path(self.config.source_path)
         self.dest_tokenized_path = Path(self.config.dest_tokenized_path)
         self.centroid_path = Path(self.config.centroid_path)
         self.logger = logging.getLogger()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        if self.config.use_convolution:
+            self.conv = nn.Conv1d(
+                in_channels=1,
+                out_channels=self.config.num_kernels,
+                kernel_size=self.config.kernel_size,
+                padding=self.config.kernel_size // 2,
+            ).to(self.device)
 
     def run(self):
         index = self.get_centroid_index()
 
-        for split, path in [
-            ("train", self.config.train_spec_path),
-            ("validation", self.config.val_spec_path),
-        ]:
+        for split in ["train", "validation"]:
             tokenized_dir = self.dest_tokenized_path / split
-            shutil.rmtree(tokenized_dir)
+            shutil.rmtree(tokenized_dir, ignore_errors=True)
             tokenized_dir.mkdir(parents=True)
-            self.logger.info(f"Tokenizing {split} set: {path} --> {tokenized_dir}")
-            all_tokens = self.tokenize(index, path, tokenized_dir)
+            self.logger.info(
+                f"Tokenizing {split} set: {self.source_path} --> {tokenized_dir}"
+            )
+            all_tokens = self.tokenize(index, self.source_path / split, tokenized_dir)
             if split == "train":
                 self.analyze_tokens(all_tokens)
                 self.plot_token_distribution(all_tokens)
@@ -44,28 +55,63 @@ class SpecTokenizer:
     def get_centroid_index(self):
         # Load the centroids
         centroids = np.load(self.centroid_path)
-
-        # Create a FAISS index and add the centroids
         d = centroids.shape[1]
         index = faiss.IndexFlatL2(d)
         index.add(centroids)
         return index
 
-    def tokenize(self, index, spec_pkl_path, tokenized_dir):
-        all_tokens = []
-        with open(spec_pkl_path, "rb") as f:
-            spec_records = pickle.load(f)
-        for spec_record in tqdm(spec_records):
-            spec, filename = spec_record["spec"], spec_record["filename"]
-            spec = spec.T
-            _, tokens = index.search(spec, 1)
-            tokens = np.squeeze(tokens, 1)
+    def apply_convolution(self, batch):
+        if len(batch) == 0:
+            self.logger.warning("Received empty batch for convolution")
+            return None
+        batch = np.array(batch)
+        batch_tensor = torch.tensor(batch, device=self.device).float().unsqueeze(1)
+        conv_output = self.conv(batch_tensor)
+        result = (
+            conv_output.transpose(1, 2)
+            .reshape(-1, self.config.num_kernels * self.config.n_mels)
+            .cpu()
+            .detach()
+            .numpy()
+        )
+        return result
 
-            if tokens.size != spec.shape[0]:
-                raise ValueError(f"Token count mismatch for {filename}")
-            all_tokens.extend(tokens)
-            tokenized_path = tokenized_dir / Path(filename).stem
-            np.save(tokenized_path, tokens)
+    def tokenize(self, index, spec_dir, tokenized_dir):
+        all_tokens = []
+        batch = []
+        batch_size = self.config.tokenizer_batch_size
+        processed_batch = None
+
+        for spec_file in tqdm(list(spec_dir.glob("*.npy"))):
+            spec = np.load(spec_file)
+            spec = spec.T
+            batch.extend(spec)
+
+            while len(batch) >= batch_size:
+                if self.config.use_convolution:
+                    processed_batch = self.apply_convolution(batch[:batch_size])
+                else:
+                    processed_batch = np.array(batch[:batch_size], dtype=np.float32)
+
+                if processed_batch is not None and processed_batch.size > 0:
+                    _, tokens = index.search(processed_batch, 1)
+                    tokens = np.squeeze(tokens, 1)
+                    all_tokens.extend(tokens)
+                    np.save(tokenized_dir / f"{spec_file.stem}.npy", tokens)
+                batch = batch[batch_size:]
+
+        if batch:
+            if self.config.use_convolution:
+                processed_batch = self.apply_convolution(batch)
+            else:
+                processed_batch = np.array(batch, dtype=np.float32)
+
+            if processed_batch is not None and processed_batch.size > 0:
+                _, tokens = index.search(processed_batch, 1)
+                tokens = np.squeeze(tokens, 1)
+                all_tokens.extend(tokens)
+                np.save(tokenized_dir / f"{spec_file.stem}.npy", tokens)
+
         return all_tokens
 
     def analyze_tokens(self, all_tokens):

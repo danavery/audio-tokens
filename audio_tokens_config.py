@@ -42,9 +42,9 @@ class AudioTokensConfig:
     # ClusterCreator
     niter: int = 20
     centroids_path: Path = Path("output/centroids.npy")
-    use_convolution: bool = True
+    use_convolution: bool = False
     num_kernels: int = 8
-    kernel_size: int = 5
+    kernel_size: int = 3
     clustering_batch_size: int = 1000000
 
     # SpecTokenizer config
@@ -53,6 +53,7 @@ class AudioTokensConfig:
     centroid_path: str = "output/centroids.npy"
     train_spec_path: str = "processed/train_specs.pkl"
     val_spec_path: str = "processed/validation_specs.pkl"
+    tokenizer_batch_size: int = 10000
 
     # ModelTrainer
     use_wandb: bool = True
