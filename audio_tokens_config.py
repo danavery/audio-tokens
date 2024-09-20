@@ -10,12 +10,12 @@ logging.basicConfig(
 
 @dataclass
 class AudioTokensConfig:
-    random_seed: int = 42
+    random_seed: int = 4242
 
     # AudiosetMetadataProcessor
     csv_index_files: List[str] = field(default_factory=lambda: ["metadata/balanced_train_segments.csv", "metadata/unbalanced_train_segments.csv"])
     ontology_json_file: str = "metadata/ontology.json"
-    dataset_ratio: float = 0.02  # portion of all ytids to use
+    dataset_ratio: float = 0.01  # portion of all ytids to use
     validation_ratio: float = 0.1  # portion of dataset to use as validation set
 
     # AudiosetMetadataProcessor and SpectrogramProcessor
