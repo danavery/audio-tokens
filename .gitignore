@@ -13,6 +13,7 @@ wandb/
 *.npy
 *.pth
 *.json
+!metadata/ontology.json
 
 # Logs
 *.log
