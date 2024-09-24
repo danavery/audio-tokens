@@ -37,9 +37,6 @@ class AudioTokensConfig:
     # ClusterCreator and ModelTrainer
     vocab_size: int = 500
 
-    # ClusterCreator and SpecTokenizer
-    train_spec_path: Path = Path("processed/train_specs.pkl")
-
     # ClusterCreator
     niter: int = 20
     centroids_path: Path = Path("output/centroids.npy")
@@ -52,8 +49,6 @@ class AudioTokensConfig:
     source_path: str = "processed/"
     dest_tokenized_path: str = "tokenized/"
     centroid_path: str = "output/centroids.npy"
-    train_spec_path: str = "processed/train_specs.pkl"
-    val_spec_path: str = "processed/validation_specs.pkl"
     tokenizer_batch_size: int = 10000
 
     # ModelTrainer
