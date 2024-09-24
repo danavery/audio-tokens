@@ -41,13 +41,15 @@ class SpecTokenizer:
         index = self.get_centroid_index()
 
         for split in ["train", "validation"]:
+            source_spec_dir = self.source_path / split
+            print(len(list(source_spec_dir.glob("*.npy"))))
             tokenized_dir = self.dest_tokenized_path / split
             shutil.rmtree(tokenized_dir, ignore_errors=True)
             tokenized_dir.mkdir(parents=True)
             self.logger.info(
-                f"Tokenizing {split} set: {self.source_path} --> {tokenized_dir}"
+                f"Tokenizing {split} set: {source_spec_dir} --> {tokenized_dir}"
             )
-            all_tokens = self.tokenize(index, self.source_path / split, tokenized_dir)
+            all_tokens = self.tokenize(index, source_spec_dir, tokenized_dir)
             if split == "train":
                 self.analyze_tokens(all_tokens)
                 self.plot_token_distribution(all_tokens)
@@ -78,39 +80,28 @@ class SpecTokenizer:
 
     def tokenize(self, index, spec_dir, tokenized_dir):
         all_tokens = []
-        batch = []
         batch_size = self.config.tokenizer_batch_size
-        processed_batch = None
 
         for spec_file in tqdm(list(spec_dir.glob("*.npy"))):
             spec = np.load(spec_file)
             spec = spec.T
-            batch.extend(spec)
+            file_tokens = []
 
-            while len(batch) >= batch_size:
+            for i in range(0, len(spec), batch_size):
+                batch = spec[i:i+batch_size]
+
                 if self.config.use_convolution:
-                    processed_batch = self.apply_convolution(batch[:batch_size])
+                    processed_batch = self.apply_convolution(batch)
                 else:
-                    processed_batch = np.array(batch[:batch_size], dtype=np.float32)
+                    processed_batch = np.array(batch, dtype=np.float32)
 
                 if processed_batch is not None and processed_batch.size > 0:
                     _, tokens = index.search(processed_batch, 1)
                     tokens = np.squeeze(tokens, 1)
-                    all_tokens.extend(tokens)
-                    np.save(tokenized_dir / f"{spec_file.stem}.npy", tokens)
-                batch = batch[batch_size:]
+                    file_tokens.extend(tokens)
 
-        if batch:
-            if self.config.use_convolution:
-                processed_batch = self.apply_convolution(batch)
-            else:
-                processed_batch = np.array(batch, dtype=np.float32)
-
-            if processed_batch is not None and processed_batch.size > 0:
-                _, tokens = index.search(processed_batch, 1)
-                tokens = np.squeeze(tokens, 1)
-                all_tokens.extend(tokens)
-                np.save(tokenized_dir / f"{spec_file.stem}.npy", tokens)
+            all_tokens.extend(file_tokens)
+            np.save(tokenized_dir / f"{spec_file.stem}.npy", np.array(file_tokens))
 
         return all_tokens
 
