@@ -2,6 +2,7 @@ import csv
 import json
 import logging
 import random
+from pathlib import Path
 
 from audio_tokens_config import AudioTokensConfig
 from set_seed import set_seed
@@ -25,6 +26,7 @@ class AudiosetMetadataProcessor:
         self.ytid_labels = {}
         self._load_ontology()
         self._load_segment_data()
+        self.split_file = Path(self.config.split_file)
 
     def _load_ontology(self):
         with open(self.config.ontology_json_file, "r") as file:
@@ -56,9 +58,10 @@ class AudiosetMetadataProcessor:
             "train": ytids[:split_index],
             "validation": ytids[split_index:],
         }
-        with open(self.config.split_file, "w") as f:
+        self.split_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.split_file, "w") as f:
             json.dump(split_data, f)
-        self.logger.info(f"Split file created at {self.config.split_file}")
+        self.logger.info(f"Split file created at {self.split_file}")
         self.logger.info(f"Training: {len(split_data['train'])}")
         self.logger.info(f"Validation: {len(split_data['validation'])}")
 
