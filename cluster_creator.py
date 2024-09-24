@@ -75,7 +75,7 @@ class ClusterCreator:
         )
 
     def _batch_generator(self, batch_size):
-        spec_dir = Path(self.config.source_path) / "train"
+        spec_dir = Path(self.config.source_spec_path) / "train"
         batch = []
         for file in tqdm(spec_dir.glob("*.npy")):
             spec = np.load(file)

@@ -84,14 +84,14 @@ class ModelTrainer:
 
         train_loader = DataLoader(
             train_dataset,
-            batch_size=self.config.batch_size,
+            batch_size=self.config.training_batch_size,
             shuffle=True,
             num_workers=self.config.num_workers,
             collate_fn=self.collate_fn,
         )
         val_loader = DataLoader(
             val_dataset,
-            batch_size=self.config.batch_size,
+            batch_size=self.config.training_batch_size,
             num_workers=self.config.num_workers,
             collate_fn=self.collate_fn,
         )

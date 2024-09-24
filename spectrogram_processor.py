@@ -11,7 +11,6 @@ from torchaudio.transforms import AmplitudeToDB, MelSpectrogram, Resample
 from tqdm import tqdm
 
 from audio_tokens_config import AudioTokensConfig
-from audioset_metadata_processor import AudiosetMetadataProcessor
 
 
 class SpectrogramProcessor:
@@ -58,9 +57,9 @@ class SpectrogramProcessor:
             enumerate(source_files), position=1, total=len(source_files)
         ):
             try:
-                for source_set in self.config.source_sets:
+                for source_set in self.config.audio_source_sets:
                     audio_file_path = Path(
-                        f"{self.config.source_parent}/{source_set}/{ytid[:2]}/{ytid}.flac"
+                        f"{self.config.audio_source_path}/{source_set}/{ytid[:2]}/{ytid}.flac"
                     )
                     # self.logger.info(audio_file_path)
                     if audio_file_path.exists():
@@ -134,6 +133,4 @@ class SpectrogramProcessor:
 
 if __name__ == "__main__":
     config = AudioTokensConfig()
-    source_ytids = AudiosetMetadataProcessor(config).ytid_labels.keys()
-    logging.getLogger().info(len(source_ytids))
     SpectrogramProcessor(config).run()

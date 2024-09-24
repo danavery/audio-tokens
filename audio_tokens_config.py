@@ -13,19 +13,23 @@ class AudioTokensConfig:
     random_seed: int = 4242
 
     # AudiosetMetadataProcessor
-    csv_index_files: List[str] = field(default_factory=lambda: ["metadata/balanced_train_segments.csv", "metadata/unbalanced_train_segments.csv"])
+    csv_index_files: List[str] = field(
+        default_factory=lambda: [
+            "metadata/balanced_train_segments.csv",
+            "metadata/unbalanced_train_segments.csv",
+        ]
+    )
     ontology_json_file: str = "metadata/ontology.json"
-    dataset_ratio: float = 0.01  # portion of all ytids to use
+    dataset_ratio: float = 0.001  # portion of all ytids to use
     validation_ratio: float = 0.1  # portion of dataset to use as validation set
 
     # AudiosetMetadataProcessor and SpectrogramProcessor
     split_file: str = "output/bal_unbal_train_val_data_split.json"
 
     # SpectrogramProcessor
-    source_ytids: List[str] = field(default_factory=list)
-    source_parent: str = "/media/davery/audioset"
-    source_sets: List[str] = field(default_factory=lambda: ["unbal_train", "bal_train"])
-    dest_spec_path: str = "processed/"
+    audio_source_path: str = "/media/davery/audioset"
+    audio_source_sets: List[str] = field(default_factory=lambda: ["unbal_train", "bal_train"])
+    dest_spec_path: str = "spectrograms/"
     common_sr: int = 22050
     normalize: bool = True
     n_mels: int = 64
@@ -39,28 +43,28 @@ class AudioTokensConfig:
 
     # ClusterCreator
     niter: int = 20
-    centroids_path: Path = Path("output/centroids.npy")
     use_convolution: bool = False
     num_kernels: int = 8
     kernel_size: int = 3
     clustering_batch_size: int = 1000000
 
+    # ClusterCreator and SpecTokenizer
+    centroids_path: Path = Path("output/centroids.npy")
+    source_spec_path: str = "spectrograms/"
+
     # SpecTokenizer config
-    source_path: str = "processed/"
-    dest_tokenized_path: str = "tokenized/"
-    centroid_path: str = "output/centroids.npy"
+    dest_tokenized_path: str = "tokenized_audio/"
     tokenizer_batch_size: int = 10000
 
     # ModelTrainer
     use_wandb: bool = True
-    seq_dir: str = "tokenized/"
-    train_dir: str = "tokenized/train/"
-    val_dir: str = "tokenized/validation/"
+    tokenized_train_dir: str = "tokenized_audio/train/"
+    tokenized_val_dir: str = "tokenized_audio/validation/"
     model_type: str = "lstm"
     num_layers: int = 1
     epochs: int = 200
     hidden_size: int = 768
-    batch_size: int = 128
+    training_batch_size: int = 128
     num_workers: int = 8
     learning_rate: float = 1e-3
     num_classes: int = 631

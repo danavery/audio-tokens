@@ -23,9 +23,9 @@ class SpecTokenizer:
     def __init__(self, config: AudioTokensConfig):
         self.config = config
         set_seed(self.config.random_seed)
-        self.source_path = Path(self.config.source_path)
+        self.source_path = Path(self.config.source_spec_path)
         self.dest_tokenized_path = Path(self.config.dest_tokenized_path)
-        self.centroid_path = Path(self.config.centroid_path)
+        self.centroid_path = Path(self.config.centroids_path)
         self.logger = logging.getLogger()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -88,7 +88,7 @@ class SpecTokenizer:
             file_tokens = []
 
             for i in range(0, len(spec), batch_size):
-                batch = spec[i:i+batch_size]
+                batch = spec[i : i + batch_size]
 
                 if self.config.use_convolution:
                     processed_batch = self.apply_convolution(batch)

@@ -6,7 +6,9 @@ __pycache__/
 # Project-specific files and directories
 .envrc
 processed/
+spectrograms/
 tokenized/
+tokenized_audio/
 output/
 wandb/
 *.pkl

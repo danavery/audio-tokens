@@ -23,7 +23,7 @@ class TokenizedSpecDataset(Dataset):
 
     def _load_tokenized_specs(self):
         base_path = (
-            self.config.train_dir if self.split == "train" else self.config.val_dir
+            self.config.tokenized_train_dir if self.split == "train" else self.config.tokenized_val_dir
         )
         for ytid in self.ytids:
             file_path = os.path.join(base_path, f"{ytid}.npy")
