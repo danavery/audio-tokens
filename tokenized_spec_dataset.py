@@ -30,7 +30,7 @@ class TokenizedSpecDataset(Dataset):
             if os.path.exists(file_path):
                 self.tokenized_spec_files.append(file_path)
             else:
-                pass
+                pass  # not all of the original AudioSet examples still exist on YT, so they're not in this dataset
                 # print(f"Warning: File not found for YouTube ID {ytid}")
 
     def __len__(self):
