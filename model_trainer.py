@@ -129,8 +129,8 @@ class ModelTrainer:
                 # self.logger.info("done plotting")
 
             if val_metrics["mAP"] > best_metric:
-                best_metric = val_metrics["mAP"]
                 self.logger.info(f"val mAP of {val_metrics['mAP']} > {best_metric}. Saving model.")
+                best_metric = val_metrics["mAP"]
                 self._save_best_model()
 
             if self._should_stop_early():
