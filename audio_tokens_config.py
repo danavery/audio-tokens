@@ -20,7 +20,7 @@ class AudioTokensConfig:
         ]
     )
     ontology_json_file: str = "metadata/ontology.json"
-    dataset_ratio: float = 0.001  # portion of all ytids to use
+    dataset_ratio: float = 0.01  # portion of all ytids to use
     validation_ratio: float = 0.1  # portion of dataset to use as validation set
 
     # AudiosetMetadataProcessor and SpectrogramProcessor
@@ -46,7 +46,7 @@ class AudioTokensConfig:
     use_convolution: bool = False
     num_kernels: int = 8
     kernel_size: int = 3
-    clustering_batch_size: int = 1000000
+    clustering_batch_size: int = 10000
 
     # ClusterCreator and SpecTokenizer
     centroids_path: Path = Path("output/centroids.npy")

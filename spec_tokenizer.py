@@ -80,28 +80,37 @@ class SpecTokenizer:
 
     def tokenize(self, index, spec_dir, tokenized_dir):
         all_tokens = []
-        batch_size = self.config.tokenizer_batch_size
+        spec_files = list(spec_dir.glob("*.npy"))
 
-        for spec_file in tqdm(list(spec_dir.glob("*.npy"))):
-            spec = np.load(spec_file)
-            spec = spec.T
-            file_tokens = []
+        for i in tqdm(range(0, len(spec_files), self.config.tokenizer_batch_size)):
+            batch_files = spec_files[i:i + self.config.tokenizer_batch_size]
+            batch_specs = []
 
-            for i in range(0, len(spec), batch_size):
-                batch = spec[i : i + batch_size]
+            for spec_file in batch_files:
+                spec = np.load(spec_file)
+                spec = spec.T
+                batch_specs.append(spec)
 
-                if self.config.use_convolution:
-                    processed_batch = self.apply_convolution(batch)
-                else:
-                    processed_batch = np.array(batch, dtype=np.float32)
+            # Concatenate all specs in the batch
+            batch_data = np.concatenate(batch_specs, axis=0)
 
-                if processed_batch is not None and processed_batch.size > 0:
-                    _, tokens = index.search(processed_batch, 1)
-                    tokens = np.squeeze(tokens, 1)
-                    file_tokens.extend(tokens)
+            if self.config.use_convolution:
+                processed_batch = self.apply_convolution(batch_data)
+            else:
+                processed_batch = batch_data.astype(np.float32)
 
-            all_tokens.extend(file_tokens)
-            np.save(tokenized_dir / f"{spec_file.stem}.npy", np.array(file_tokens))
+            if processed_batch is not None and processed_batch.size > 0:
+                _, tokens = index.search(processed_batch, 1)
+                tokens = np.squeeze(tokens, 1)
+
+                # Split tokens back to individual files
+                start = 0
+                for j, spec_file in enumerate(batch_files):
+                    end = start + len(batch_specs[j])
+                    file_tokens = tokens[start:end]
+                    all_tokens.extend(file_tokens)
+                    np.save(tokenized_dir / f"{spec_file.stem}.npy", file_tokens)
+                    start = end
 
         return all_tokens
 

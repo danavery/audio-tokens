@@ -76,24 +76,24 @@ class ClusterCreator:
 
     def _batch_generator(self, batch_size):
         spec_dir = Path(self.config.source_spec_path) / "train"
-        batch = []
-        for file in tqdm(spec_dir.glob("*.npy")):
-            spec = np.load(file)
-            spec = spec.T
-            batch.extend(spec)
+        files = list(spec_dir.glob("*.npy"))
 
-            while len(batch) >= batch_size:
-                if self.config.use_convolution:
-                    yield self.apply_convolution(batch[:batch_size])
-                else:
-                    yield np.array(batch[:batch_size], dtype=np.float32)
-                batch = batch[batch_size:]
+        for i in tqdm(range(0, len(files), batch_size)):
+            batch_files = files[i:i+batch_size]
+            batch_data = []
 
-        if batch:
+            for file in batch_files:
+                spec = np.load(file)
+                spec = spec.T  # transpose if necessary
+                batch_data.append(spec)
+
+            # Concatenate all time slices from this batch of files
+            all_time_slices = np.concatenate(batch_data, axis=0)
+
             if self.config.use_convolution:
-                yield self.apply_convolution(batch)
+                yield self.apply_convolution(all_time_slices)
             else:
-                yield np.array(batch, dtype=np.float32)
+                yield all_time_slices.astype(np.float32)
 
     def visualize_centroids(self, centroids):
         pca = PCA(n_components=2)
