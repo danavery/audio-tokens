@@ -60,7 +60,7 @@ class AudioTokensConfig:
     use_wandb: bool = True
     tokenized_train_dir: str = "tokenized_audio/train/"
     tokenized_val_dir: str = "tokenized_audio/validation/"
-    model_type: str = "lstm"
+    model_type: str = "simple"
     num_layers: int = 1
     epochs: int = 200
     hidden_size: int = 768
