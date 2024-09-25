@@ -92,8 +92,8 @@ class ModelTrainer:
         return train_loader, val_loader
 
     def collate_fn(self, batch):
-        input_ids = [item[0][:512] for item in batch]
-        attention_masks = [item[1][:512] for item in batch]
+        input_ids = [item[0] for item in batch]
+        attention_masks = [item[1] for item in batch]
         labels = [item[2] for item in batch]
 
         input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0).long()
@@ -232,7 +232,7 @@ class ModelTrainer:
         """early stopping logic"""
 
     def _save_best_model(self):
-        torch.save(self.model.state_dict(), "output/best_model.pth")
+        torch.save(self.model.state_dict(), f"output/{self.run_name}-best_model.pth")
 
     def _get_bert_model(self):
         model = CustomBertClassifier(

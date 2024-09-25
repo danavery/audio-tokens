@@ -64,7 +64,7 @@ class AudioTokensConfig:
     num_layers: int = 1
     epochs: int = 200
     hidden_size: int = 768
-    training_batch_size: int = 128
+    training_batch_size: int = 64
     num_workers: int = 8
     learning_rate: float = 1e-3
     num_classes: int = 631

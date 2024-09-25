@@ -48,7 +48,7 @@ class SpectrogramProcessor:
                     output_file = output_dir / f"{ytid}.npy"
                     np.save(output_file, spec["spec"])
             self.logger.info(
-                f"{split.capitalize()} spectrograms saved to: {self.config.dest_spec_path}"
+                f"{split.capitalize()} spectrograms saved to: {self.config.dest_spec_path / split}"
             )
 
     def populate_specs(self, source_files):
