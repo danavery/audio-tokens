@@ -70,10 +70,10 @@ class ModelTrainer:
     def _initialize_data_loaders(self):
         metadata_manager = AudiosetMetadataProcessor(self.config)
         train_dataset = TokenizedSpecDataset(
-            config, metadata_manager, split="train",
+            self.config, metadata_manager, split="train",
         )
         val_dataset = TokenizedSpecDataset(
-            config, metadata_manager, split="validation"
+            self.config, metadata_manager, split="validation"
         )
 
         train_loader = DataLoader(
