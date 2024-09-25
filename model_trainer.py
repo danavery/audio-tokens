@@ -45,12 +45,6 @@ class ModelTrainer:
         else:
             self.run_name = "no-wandb"
 
-    # def setup_train_val(self):
-    #     self.train_files = list(Path(self.config.train_dir).glob("*.npy"))
-    #     self.val_files = list(Path(self.config.val_dir).glob("*.npy"))
-    #     self.logger.info(f"Training files: {len(self.train_files)}")
-    #     self.logger.info(f"Validation files: {len(self.val_files)}")
-
     def _initialize_model(self):
         if self.config.model_type == "simple":
             return self._get_simple_model()
@@ -122,10 +116,11 @@ class ModelTrainer:
             )
 
             if epoch % self.diagnostic_interval == 0:
-                self.logger.info("starting gradient recording")
-                self.diagnostics.check_gradient_flow(
-                    epoch=epoch, run_name=self.run_name
-                )
+                pass
+                # self.logger.info("starting gradient recording")
+                # self.diagnostics.check_gradient_flow(
+                #     epoch=epoch, run_name=self.run_name
+                # )
                 # # this is taking a very long time. investigate.
                 # self.logger.info("plotting loss landscape")
                 # self.diagnostics.plot_loss_landscape(
@@ -135,11 +130,11 @@ class ModelTrainer:
 
             if val_metrics["mAP"] > best_metric:
                 best_metric = val_metrics["mAP"]
+                self.logger.info(f"val mAP of {val_metrics['mAP']} > {best_metric}. Saving model.")
                 self._save_best_model()
 
             if self._should_stop_early():
                 break
-        self._save_best_model()
         return val_loss, val_metrics
 
     def _train_epoch(self):
