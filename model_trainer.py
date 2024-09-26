@@ -15,10 +15,10 @@ from audio_tokens_config import AudioTokensConfig
 from audioset_metadata_processor import AudiosetMetadataProcessor
 from custom_bert_classifier import CustomBertClassifier
 from model_diagnostics import ModelDiagnostics
+from set_seed import set_seed
 from simple_lstm_token_classifier import SimpleLSTMTokenClassifier
 from simple_token_classifier import SimpleTokenClassifier
 from tokenized_spec_dataset import TokenizedSpecDataset
-from set_seed import set_seed
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -157,8 +157,8 @@ class ModelTrainer:
         for batch in progress_bar:
             loss, predictions, labels = self._process_batch(batch, is_training)
             total_loss += loss
-            all_predictions.extend(predictions.cpu().detach().numpy())
-            all_labels.extend(labels.cpu().numpy())
+            all_predictions.append(predictions.cpu().detach().numpy())
+            all_labels.append(labels.cpu().numpy())
 
             if is_training:
                 progress_bar.set_postfix({"loss": loss})
