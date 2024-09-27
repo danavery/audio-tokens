@@ -31,10 +31,15 @@ class AudiosetMetadataProcessor:
     def _load_ontology(self):
         with open(self.config.ontology_json_file, "r") as file:
             ontology = json.load(file)
-        for index, item in enumerate(ontology):
+        index = 0
+        for item in ontology:
+            if item["restrictions"]:
+                continue
             self.index_label[index] = item["id"]
             self.label_index[item["id"]] = index
             self.label_name[item["id"]] = item["name"]
+            index += 1
+        self.logger.info(f"{index} non-restricted classes")
 
     def _load_segment_data(self):
         for csv_file in self.config.csv_index_files:
@@ -45,7 +50,7 @@ class AudiosetMetadataProcessor:
                 for row in reader:
                     ytid, label_str = row[0], row[3]
                     labels = label_str.split(",")
-                    label_indexes = [self.label_index[i] for i in labels]
+                    label_indexes = [self.label_index[i] for i in labels if i in self.label_index]
                     self.ytid_labels[ytid] = label_indexes
 
     def create_split_file(self):

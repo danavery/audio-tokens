@@ -67,7 +67,7 @@ class AudioTokensConfig:
     training_batch_size: int = 64
     num_workers: int = 8
     learning_rate: float = 1e-3
-    num_classes: int = 631
+    num_classes: int = 543
     prediction_threshold: float = 0.2
     lstm_embed_dim: int = 128
     lstm_hidden_dim: int = 256

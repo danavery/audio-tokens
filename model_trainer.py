@@ -4,7 +4,7 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import average_precision_score, f1_score, hamming_loss
+from sklearn.metrics import average_precision_score
 from torch.nn.utils.rnn import pad_sequence
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
@@ -129,7 +129,7 @@ class ModelTrainer:
                 # self.logger.info("done plotting")
 
             if val_metrics["mAP"] > best_metric:
-                self.logger.info(f"val mAP of {val_metrics['mAP']} > {best_metric}. Saving model.")
+                self.logger.info(f"val mAP of {val_metrics['mAP']:.4f} > {best_metric:.4f}. Saving model.")
                 best_metric = val_metrics["mAP"]
                 self._save_best_model()
 
@@ -186,16 +186,25 @@ class ModelTrainer:
 
         return loss.item(), torch.sigmoid(outputs).detach(), labels
 
+    def calculate_mAP(self, labels, predictions):
+        aps = []
+        for i in range(labels.shape[1]):
+            if labels[:, i].sum() > 0:  # Only calculate AP for classes with positive samples
+                ap = average_precision_score(labels[:, i], predictions[:, i])
+                aps.append(ap)
+        return np.mean(aps) if aps else 0.0
+
     def _compute_metrics(self, predictions, labels):
         # For F1 and Hamming loss, we need binary predictions
-        binary_predictions = (predictions > self.config.prediction_threshold).astype(
-            int
-        )
+        # binary_predictions = (predictions > self.config.prediction_threshold).astype(
+        #     int
+        # )
         return {
-            "f1_score_micro": f1_score(labels, binary_predictions, average="micro"),
-            "f1_score_macro": f1_score(labels, binary_predictions, average="macro"),
-            "hamming_loss": hamming_loss(labels, binary_predictions),
-            "mAP": average_precision_score(labels, predictions, average="macro"),
+            # "f1_score_micro": f1_score(labels, binary_predictions, average="micro"),
+            # "f1_score_macro": f1_score(labels, binary_predictions, average="macro"),
+            # "hamming_loss": hamming_loss(labels, binary_predictions),
+            # "mAP": average_precision_score(labels, predictions, average="macro"),
+            "mAP": self.calculate_mAP(labels, predictions),
         }
 
     def _log_epoch_results(
@@ -203,10 +212,13 @@ class ModelTrainer:
     ):
         self.logger.info(f"Epoch {epoch}")
         self.logger.info(
-            f"Train Loss: {train_loss:.4f}, Train F1 (macro): {train_metrics['f1_score_macro']:.4f}, Train F1 (micro): {train_metrics['f1_score_micro']:.4f}, Train Hamming Loss: {train_metrics['hamming_loss']:.4f}, Train mAP: {train_metrics['mAP']:.4f}"
+            # f"Train Loss: {train_loss:.4f}, Train F1 (macro): {train_metrics['f1_score_macro']:.4f}, Train F1 (micro): {train_metrics['f1_score_micro']:.4f}, Train Hamming Loss: {train_metrics['hamming_loss']:.4f}, Train mAP: {train_metrics['mAP']:.4f}, alt Train mAP: {train_metrics['alt_mAP']:.4f}"
+            f"Train Loss: {train_loss:.4f}, Train mAP: {train_metrics['mAP']:.4f}"
         )
+
         self.logger.info(
-            f"Val Loss: {val_loss:.4f}, Val F1 (macro): {val_metrics['f1_score_macro']:.4f}, Val F1 (micro): {val_metrics['f1_score_micro']:.4f}, Val Hamming Loss: {val_metrics['hamming_loss']:.4f}, Val mAP: {val_metrics['mAP']:.4f}"
+            # f"Val Loss: {val_loss:.4f}, Val F1 (macro): {val_metrics['f1_score_macro']:.4f}, Val F1 (micro): {val_metrics['f1_score_micro']:.4f}, Val Hamming Loss: {val_metrics['hamming_loss']:.4f}, Val mAP: {val_metrics['mAP']:.4f}, alt Train mAP: {val_metrics['alt_mAP']:.4f}"
+            f"Val Loss: {val_loss:.4f}, Val mAP: {val_metrics['mAP']:.4f}"
         )
         if self.config.use_wandb:
             wandb.log(
