@@ -16,19 +16,19 @@ class AudioTokensConfig:
     csv_index_files: List[str] = field(
         default_factory=lambda: [
             "metadata/balanced_train_segments.csv",
-            "metadata/unbalanced_train_segments.csv",
+            # "metadata/unbalanced_train_segments.csv",
         ]
     )
     ontology_json_file: str = "metadata/ontology.json"
-    dataset_ratio: float = 0.01  # portion of all ytids to use
+    dataset_ratio: float = 1  # portion of all ytids to use
     validation_ratio: float = 0.1  # portion of dataset to use as validation set
 
     # AudiosetMetadataProcessor and SpectrogramProcessor
-    split_file: str = "output/bal_unbal_train_val_data_split.json"
+    split_file: str = "output/bal_train_val_data_split.json"
 
     # SpectrogramProcessor
     audio_source_path: str = "/media/davery/audioset"
-    audio_source_sets: List[str] = field(default_factory=lambda: ["unbal_train", "bal_train"])
+    audio_source_sets: List[str] = field(default_factory=lambda: ["bal_train"])
     dest_spec_path: str = "spectrograms/"
     common_sr: int = 22050
     normalize: bool = True
