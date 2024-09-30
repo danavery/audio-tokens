@@ -152,7 +152,7 @@ class ModelTrainer:
         all_labels = []
 
         progress_bar = tqdm(
-            data_loader, desc="Training" if is_training else "Validating"
+            data_loader, desc="Training" if is_training else "Validating", mininterval=1,
         )
         for batch in progress_bar:
             loss, predictions, labels = self._process_batch(batch, is_training)
@@ -160,8 +160,8 @@ class ModelTrainer:
             all_predictions.append(predictions.cpu().detach().numpy())
             all_labels.append(labels.cpu().numpy())
 
-            if is_training:
-                progress_bar.set_postfix({"loss": loss})
+            # if is_training:
+            #     progress_bar.set_postfix({"loss": loss})
 
         # Concatenate all predictions and labels
         all_predictions = np.concatenate(all_predictions, axis=0)

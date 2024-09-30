@@ -49,15 +49,21 @@ class ClusterCreator:
         for i, batch in enumerate(
             self._batch_generator(self.config.clustering_batch_size)
         ):
+            batch = self.normalize_vectors(batch)
             if i == 0:
                 kmeans.train(batch)
             else:
                 kmeans.train(batch, init_centroids=kmeans.centroids)
 
         centroids = kmeans.centroids
+        centroids = self.normalize_vectors(centroids)
         self.logger.info(f"Centroids shape: {centroids.shape}")
         np.save(self.config.centroids_path, centroids)
         self.visualize_centroids(centroids)
+
+    def normalize_vectors(self, vectors):
+        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+        return vectors / (norms + 1e-10)
 
     def apply_convolution(self, time_slice_batch):
         time_slice_batch = np.array(time_slice_batch)

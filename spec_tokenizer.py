@@ -78,6 +78,10 @@ class SpecTokenizer:
         )
         return result
 
+    def normalize_vectors(self, vectors):
+        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+        return vectors / (norms + 1e-10)
+
     def tokenize(self, index, spec_dir, tokenized_dir):
         all_tokens = []
         spec_files = list(spec_dir.glob("*.npy"))
@@ -100,6 +104,7 @@ class SpecTokenizer:
                 processed_batch = batch_data.astype(np.float32)
 
             if processed_batch is not None and processed_batch.size > 0:
+                processed_batch = self.normalize_vectors(processed_batch)
                 _, tokens = index.search(processed_batch, 1)
                 tokens = np.squeeze(tokens, 1)
 

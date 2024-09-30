@@ -33,8 +33,8 @@ class AudioTokensConfig:
     common_sr: int = 22050
     normalize: bool = True
     n_mels: int = 64
-    n_fft: int = 256
-    hop_length: int = 128
+    n_fft: int = 4096
+    hop_length: int = 2048
     n_segments: int = 0
     spectrogram_batch_size: int = 10000
 
@@ -43,8 +43,8 @@ class AudioTokensConfig:
 
     # ClusterCreator
     niter: int = 20
-    use_convolution: bool = False
-    num_kernels: int = 8
+    use_convolution: bool = True
+    num_kernels: int = 10
     kernel_size: int = 3
     clustering_batch_size: int = 10000
 
@@ -62,11 +62,11 @@ class AudioTokensConfig:
     tokenized_val_dir: str = "tokenized_audio/validation/"
     model_type: str = "lstm"
     num_layers: int = 1
-    epochs: int = 200
+    epochs: int = 5000
     hidden_size: int = 768
-    training_batch_size: int = 64
+    training_batch_size: int = 256
     num_workers: int = 8
-    learning_rate: float = 1e-3
+    learning_rate: float = 1e-5
     num_classes: int = 543
     prediction_threshold: float = 0.2
     lstm_embed_dim: int = 128
