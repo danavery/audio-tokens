@@ -61,15 +61,17 @@ class AudiosetMetadataProcessor:
                 for row in reader:
                     ytid, label_str = row[0], row[3]
                     labels = label_str.split(",")
-                    label_indexes = [self.label_index[i] for i in labels if i in self.label_index]
+                    label_indexes = [
+                        self.label_index[i] for i in labels if i in self.label_index
+                    ]
                     self.ytid_labels[ytid] = label_indexes
 
-            self.logger.info(f"Loaded segment data for {len(self.ytid_labels)} YouTube IDs")
+            self.logger.info(
+                f"Loaded segment data for {len(self.ytid_labels)} YouTube IDs"
+            )
 
     def get_all_ytids(self) -> List[str]:
         return list(self.ytid_labels.keys())
 
     def get_ytid_labels(self, ytid: str) -> List[int]:
         return self.ytid_labels.get(ytid, [])
-
-
