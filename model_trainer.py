@@ -42,14 +42,29 @@ class ModelTrainer:
 
         self.diagnostics = ModelDiagnostics(model=self.model, criterion=self.criterion)
         self.diagnostic_interval = 1
-        if self.config.use_wandb:
-            self.run_name = self._setup_wandb()
-            self.logger.info(f"wandb run name: {self.run_name}")
-        else:
-            self.run_name = "no-wandb"
+        self.run_name = self._initialize_wandb()
 
-    def _initialize_optimizer(self):
-        return AdamW(self.model.parameters(), lr=self.config.learning_rate)
+    def train(self):
+        self.train_loader, self.val_loader = self._initialize_data_loaders()
+        best_metric = 0
+
+        for epoch in range(self.config.epochs):
+            train_loss, train_metrics = self._train_epoch()
+            val_loss, val_metrics = self._validate_epoch()
+
+            self._log_epoch_results(
+                epoch, train_loss, train_metrics, val_loss, val_metrics
+            )
+
+            if epoch % self.diagnostic_interval == 0:
+                pass
+                # self._run_diagnostics(epoch)
+
+            best_metric = self._save_if_best_model(best_metric, val_metrics)
+
+            if self._should_stop_early():
+                break
+        return val_loss, val_metrics
 
     def _initialize_data_loaders(self):
         metadata_manager = AudiosetMetadataProcessor(self.config)
@@ -68,6 +83,7 @@ class ModelTrainer:
             shuffle=True,
             num_workers=self.config.num_workers,
             collate_fn=self.collate_fn,
+            pin_memory=True,
         )
         val_loader = DataLoader(
             val_dataset,
@@ -88,42 +104,6 @@ class ModelTrainer:
         ).float()
         labels = torch.stack(labels).float()
         return input_ids, attention_masks, labels
-
-    def train(self):
-        self.train_loader, self.val_loader = self._initialize_data_loaders()
-        best_metric = 0
-
-        for epoch in range(self.config.epochs):
-            train_loss, train_metrics = self._train_epoch()
-            val_loss, val_metrics = self._validate_epoch()
-
-            self._log_epoch_results(
-                epoch, train_loss, train_metrics, val_loss, val_metrics
-            )
-
-            if epoch % self.diagnostic_interval == 0:
-                pass
-                # self.logger.info("starting gradient recording")
-                # self.diagnostics.check_gradient_flow(
-                #     epoch=epoch, run_name=self.run_name
-                # )
-                # # this is taking a very long time. investigate.
-                # self.logger.info("plotting loss landscape")
-                # self.diagnostics.plot_loss_landscape(
-                #     epoch=epoch, val_loader=self.val_loader, run_name=self.run_name
-                # )
-                # self.logger.info("done plotting")
-
-            if val_metrics["mAP"] > best_metric:
-                self.logger.info(
-                    f"val mAP of {val_metrics['mAP']:.4f} > {best_metric:.4f}. Saving model."
-                )
-                best_metric = val_metrics["mAP"]
-                self._save_best_model()
-
-            if self._should_stop_early():
-                break
-        return val_loss, val_metrics
 
     def _train_epoch(self):
         self.model.train()
@@ -154,20 +134,30 @@ class ModelTrainer:
         return total_loss / len(data_loader), metrics
 
     def _process_batch(self, batch, is_training):
-        input_ids, attention_masks, labels = [b.to(self.device) for b in batch]
+        input_ids, attention_masks, labels = (b.to(self.device) for b in batch)
         outputs = self.model(input_ids, attention_mask=attention_masks)
         loss = self.criterion(outputs, labels)
-
-        # self.logger.debug("Raw outputs:", outputs[0][:5].tolist())
-        # self.logger.debug("Sigmoid outputs:", torch.sigmoid(outputs[0][:50]).tolist())
-        # self.logger.debug("Labels:", labels[0][:50].tolist())
-
         if is_training:
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-
+            self._backpropagate(loss)
         return loss.item(), torch.sigmoid(outputs).detach(), labels
+
+    def _backpropagate(self, loss):
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+    def _initialize_optimizer(self):
+        return AdamW(self.model.parameters(), lr=self.config.learning_rate)
+
+    def _run_diagnostics(self, epoch):
+        self.logger.info("starting gradient recording")
+        self.diagnostics.check_gradient_flow(epoch=epoch, run_name=self.run_name)
+        # this is taking a very long time. investigate.
+        self.logger.info("plotting loss landscape")
+        self.diagnostics.plot_loss_landscape(
+            epoch=epoch, val_loader=self.val_loader, run_name=self.run_name
+        )
+        self.logger.info("done plotting")
 
     def _log_epoch_results(
         self, epoch, train_loss, train_metrics, val_loss, val_metrics
@@ -182,36 +172,46 @@ class ModelTrainer:
             # f"Val Loss: {val_loss:.4f}, Val F1 (macro): {val_metrics['f1_score_macro']:.4f}, Val F1 (micro): {val_metrics['f1_score_micro']:.4f}, Val Hamming Loss: {val_metrics['hamming_loss']:.4f}, Val mAP: {val_metrics['mAP']:.4f}, alt Train mAP: {val_metrics['alt_mAP']:.4f}"
             f"Val Loss: {val_loss:.4f}, Val mAP: {val_metrics['mAP']:.4f}"
         )
-        if self.config.use_wandb:
-            wandb.log(
-                {
-                    "epoch": epoch,
-                    "train_loss": train_loss,
-                    "train_mAP": train_metrics["mAP"],
-                    "val_loss": val_loss,
-                    "val_mAP": val_metrics["mAP"],
-                }
-            )
-
-    def _setup_wandb(self):
-        run = wandb.init(
-            project="audio-tokens",
-            # track hyperparameters and run metadata. send it all!
-            config=self.config,
+        if not self.config.use_wandb:
+            return
+        wandb.log(
+            {
+                "epoch": epoch,
+                "train_loss": train_loss,
+                "train_mAP": train_metrics["mAP"],
+                "val_loss": val_loss,
+                "val_mAP": val_metrics["mAP"],
+            }
         )
-        return run.name
+
+    def _initialize_wandb(self):
+        if self.config.use_wandb:
+            run = wandb.init(
+                project="audio-tokens",
+                # track hyperparameters and run metadata. send it all!
+                config=self.config,
+            )
+            return run.name
+        else:
+            return "no-wandb"
 
     def _should_stop_early(self):
         """early stopping logic"""
 
-    def _save_best_model(self):
-        torch.save(self.model.state_dict(), f"output/{self.run_name}-best_model.pth")
+    def _save_if_best_model(self, best_metric, val_metrics):
+        if val_metrics["mAP"] > best_metric:
+            self.logger.info(
+                    f"val mAP of {val_metrics['mAP']:.4f} > {best_metric:.4f}. Saving model."
+                )
+            best_metric = val_metrics["mAP"]
+            torch.save(self.model.state_dict(), f"output/{self.run_name}-best_model.pth")
+        return best_metric
 
 
 if __name__ == "__main__":
     config = AudioTokensConfig()
     trainer = ModelTrainer(config)
-    val_loss, val_accuracy = trainer.train()
+    val_loss, val_metrics = trainer.train()
     logging.getLogger().info(
-        f"Final Validation Loss: {val_loss}, Final Validation Accuracy: {val_accuracy}"
+        f"Final Validation Loss: {val_loss:.4f}, Final Validation mAP: {val_metrics['mAP']:.4f}"
     )
