@@ -1,10 +1,8 @@
 import logging
 import os
 
-import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import average_precision_score
 from torch.nn.utils.rnn import pad_sequence
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
@@ -13,12 +11,11 @@ from tqdm import tqdm
 import wandb
 from audio_tokens_config import AudioTokensConfig
 from audioset_metadata_processor import AudiosetMetadataProcessor
-from custom_bert_classifier import CustomBertClassifier
 from model_diagnostics import ModelDiagnostics
+from models import get_model
 from set_seed import set_seed
-from simple_lstm_token_classifier import SimpleLSTMTokenClassifier
-from simple_token_classifier import SimpleTokenClassifier
 from tokenized_spec_dataset import TokenizedSpecDataset
+from metrics_calculator import MetricsCalculator
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -31,12 +28,18 @@ class ModelTrainer:
     def __init__(self, config: AudioTokensConfig):
         self.config = config
         set_seed(self.config.random_seed)
-        self.logger = logging.getLogger()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # self.setup_train_val()
-        self.model = self._initialize_model()
+        self.logger = logging.getLogger(__name__)
+        self.device = torch.device(
+            "cuda"
+            if torch.cuda.is_available()
+            else "mps" if torch.backends.mps.is_available() else "cpu"
+        )
+
+        self.model = get_model(self.config).to(self.device)
         self.optimizer = self._initialize_optimizer()
         self.criterion = nn.BCEWithLogitsLoss()
+        self.metrics_calculator = MetricsCalculator()
+
         self.diagnostics = ModelDiagnostics(model=self.model, criterion=self.criterion)
         self.diagnostic_interval = 1
         if self.config.use_wandb:
@@ -45,32 +48,15 @@ class ModelTrainer:
         else:
             self.run_name = "no-wandb"
 
-    def _initialize_model(self):
-        if self.config.model_type == "simple":
-            return self._get_simple_model()
-        elif self.config.model_type == "bert":
-            model = CustomBertClassifier(
-                vocab_size=self.config.vocab_size,
-                num_hidden_layers=self.config.num_layers,
-                num_classes=self.config.num_classes,
-                device=self.device,
-                hidden_size=self.config.hidden_size,
-            )
-        elif self.config.model_type == "lstm":
-            return self._get_lstm_model()
-        else:
-            raise ValueError(f"Unknown model type: {self.config.model_type}")
-
-        model.to(self.device)
-        return model
-
     def _initialize_optimizer(self):
         return AdamW(self.model.parameters(), lr=self.config.learning_rate)
 
     def _initialize_data_loaders(self):
         metadata_manager = AudiosetMetadataProcessor(self.config)
         train_dataset = TokenizedSpecDataset(
-            self.config, metadata_manager, split="train",
+            self.config,
+            metadata_manager,
+            split="train",
         )
         val_dataset = TokenizedSpecDataset(
             self.config, metadata_manager, split="validation"
@@ -129,7 +115,9 @@ class ModelTrainer:
                 # self.logger.info("done plotting")
 
             if val_metrics["mAP"] > best_metric:
-                self.logger.info(f"val mAP of {val_metrics['mAP']:.4f} > {best_metric:.4f}. Saving model.")
+                self.logger.info(
+                    f"val mAP of {val_metrics['mAP']:.4f} > {best_metric:.4f}. Saving model."
+                )
                 best_metric = val_metrics["mAP"]
                 self._save_best_model()
 
@@ -152,7 +140,9 @@ class ModelTrainer:
         all_labels = []
 
         progress_bar = tqdm(
-            data_loader, desc="Training" if is_training else "Validating", mininterval=1,
+            data_loader,
+            desc="Training" if is_training else "Validating",
+            mininterval=1,
         )
         for batch in progress_bar:
             loss, predictions, labels = self._process_batch(batch, is_training)
@@ -160,14 +150,7 @@ class ModelTrainer:
             all_predictions.append(predictions.cpu().detach().numpy())
             all_labels.append(labels.cpu().numpy())
 
-            # if is_training:
-            #     progress_bar.set_postfix({"loss": loss})
-
-        # Concatenate all predictions and labels
-        all_predictions = np.concatenate(all_predictions, axis=0)
-        all_labels = np.concatenate(all_labels, axis=0)
-
-        metrics = self._compute_metrics(all_predictions, all_labels)
+        metrics = self.metrics_calculator.compute_metrics(all_predictions, all_labels)
         return total_loss / len(data_loader), metrics
 
     def _process_batch(self, batch, is_training):
@@ -185,27 +168,6 @@ class ModelTrainer:
             self.optimizer.step()
 
         return loss.item(), torch.sigmoid(outputs).detach(), labels
-
-    def calculate_mAP(self, labels, predictions):
-        aps = []
-        for i in range(labels.shape[1]):
-            if labels[:, i].sum() > 0:  # Only calculate AP for classes with positive samples
-                ap = average_precision_score(labels[:, i], predictions[:, i])
-                aps.append(ap)
-        return np.mean(aps) if aps else 0.0
-
-    def _compute_metrics(self, predictions, labels):
-        # For F1 and Hamming loss, we need binary predictions
-        # binary_predictions = (predictions > self.config.prediction_threshold).astype(
-        #     int
-        # )
-        return {
-            # "f1_score_micro": f1_score(labels, binary_predictions, average="micro"),
-            # "f1_score_macro": f1_score(labels, binary_predictions, average="macro"),
-            # "hamming_loss": hamming_loss(labels, binary_predictions),
-            # "mAP": average_precision_score(labels, predictions, average="macro"),
-            "mAP": self.calculate_mAP(labels, predictions),
-        }
 
     def _log_epoch_results(
         self, epoch, train_loss, train_metrics, val_loss, val_metrics
@@ -233,10 +195,9 @@ class ModelTrainer:
 
     def _setup_wandb(self):
         run = wandb.init(
-            # set the wandb project where this run will be logged
             project="audio-tokens",
             # track hyperparameters and run metadata. send it all!
-            config=self.config
+            config=self.config,
         )
         return run.name
 
@@ -245,65 +206,6 @@ class ModelTrainer:
 
     def _save_best_model(self):
         torch.save(self.model.state_dict(), f"output/{self.run_name}-best_model.pth")
-
-    def _get_bert_model(self):
-        model = CustomBertClassifier(
-            vocab_size=self.vocab_size,
-            num_hidden_layers=self.num_layers,
-            num_classes=self.config.num_classes,
-            device=self.device,
-            dropout=self.dropout,
-            hidden_size=self.hidden_size,
-        ).to(self.device)
-        return model
-
-    def _get_simple_model(self):
-        model = SimpleTokenClassifier(
-            vocab_size=self.config.vocab_size,
-            hidden_size=self.config.hidden_size,
-            num_classes=self.config.num_classes,
-        ).to(self.device)
-        return model
-
-    def _get_lstm_model(self):
-        model = SimpleLSTMTokenClassifier(
-            vocab_size=self.config.vocab_size,
-            embed_dim=self.config.lstm_embed_dim,
-            hidden_dim=self.config.lstm_hidden_dim,
-            num_layers=self.config.num_layers,
-            num_classes=self.config.num_classes,
-            dropout=self.config.dropout,
-        )
-        model.to(self.device)
-        return model
-
-
-class RNNClassifier(nn.Module):
-    def __init__(
-        self, num_embeddings, embed_len, hidden_dim, n_layers, target_classes=10
-    ):
-        super(RNNClassifier, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.n_layers = n_layers
-        self.embedding_layer = nn.Embedding(
-            num_embeddings=num_embeddings, embedding_dim=embed_len
-        )
-        self.rnn = nn.RNN(
-            input_size=embed_len,
-            hidden_size=hidden_dim,
-            num_layers=n_layers,
-            batch_first=True,
-            bidirectional=True,
-        )
-        self.linear = nn.Linear(hidden_dim, target_classes)
-
-    def forward(self, X_batch, attention_mask=None):
-        embeddings = self.embedding_layer(X_batch)
-        hidden = torch.randn(
-            self.n_layers, X_batch.size(0), self.hidden_dim, device="cuda"
-        )
-        output, hidden = self.rnn(embeddings, hidden)
-        return self.linear(output[:, -1])
 
 
 if __name__ == "__main__":
