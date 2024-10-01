@@ -16,14 +16,17 @@ from audio_tokens_config import AudioTokensConfig
 class SpectrogramProcessor:
     def __init__(self, config):
         self.config = config
+        self.logger = logging.getLogger(__name__)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+
         self.spec_transformer = MelSpectrogram(
             sample_rate=self.config.common_sr,
             n_mels=self.config.n_mels,
             n_fft=self.config.n_fft,
             hop_length=self.config.hop_length,
-        )
-        self.amplitude_to_db_transformer = AmplitudeToDB()
-        self.logger = logging.getLogger()
+        ).to(self.device)
+        self.amplitude_to_db_transformer = AmplitudeToDB().to(self.device)
+
         with open(config.split_file, "r") as f:
             self.data_split = json.load(f)
 
@@ -46,7 +49,7 @@ class SpectrogramProcessor:
                 for spec in specs:
                     ytid = spec["filename"].replace(".flac", "")
                     output_file = output_dir / f"{ytid}.npy"
-                    np.save(output_file, spec["spec"])
+                    np.save(output_file, spec["spec"].cpu())
             self.logger.info(
                 f"{split.capitalize()} spectrograms saved to: {output_dir}"
             )
@@ -56,36 +59,41 @@ class SpectrogramProcessor:
         for i, ytid in tqdm(
             enumerate(source_files), position=1, total=len(source_files)
         ):
-            try:
-                for source_set in self.config.audio_source_sets:
-                    audio_file_path = Path(
-                        f"{self.config.audio_source_path}/{source_set}/{ytid[:2]}/{ytid}.flac"
-                    )
-                    # self.logger.info(audio_file_path)
-                    if audio_file_path.exists():
-                        found = True
-                        break
-                    else:
-                        found = False
-                if found:
-                    waveform = self.preprocess_waveform(audio_file_path)
-                else:
-                    self.logger.debug(f"Not found: {audio_file_path}")
-                    continue
-            except RuntimeError as e:
-                self.logger.debug(f"{e}: {audio_file_path}")
 
+            audio_file_path = self.find_audio_file(ytid)
+            if not audio_file_path:
+                continue
+            waveform = self.preprocess_waveform(audio_file_path)
+            if waveform is None:
+                continue
             spec = self.generate_mel_spectrogram(waveform)
+
             if self.config.normalize:
                 spec = self.normalize_spectrogram(spec)
+
             if self.check_for_nan_inf(spec, f"spectrogram {i}"):
                 self.logger.debug(f"Bad file: {audio_file_path}")
                 continue
+
             specs.append({"filename": os.path.basename(audio_file_path), "spec": spec})
         return specs
 
+    def find_audio_file(self, ytid):
+        for source_set in self.config.audio_source_sets:
+            audio_file_path = Path(f"{self.config.audio_source_path}/{source_set}/{ytid[:2]}/{ytid}.flac")
+            if audio_file_path.exists():
+                return audio_file_path
+        self.logger.debug(f"Audio file not found: {audio_file_path}")
+        return None
+
     def preprocess_waveform(self, audio_file_path):
-        waveform, sr = torchaudio.load(audio_file_path)
+        try:
+            waveform, sr = torchaudio.load(audio_file_path)
+        except RuntimeError as e:
+            if (str(e) == "Failed to decode audio."):
+                self.logger.info(f"skipping {audio_file_path}: {e}")
+                return None
+        waveform = waveform.to(self.device)
         waveform = self.convert_to_mono(waveform)
         waveform = self.resample(waveform, sr)
         return waveform
@@ -99,10 +107,9 @@ class SpectrogramProcessor:
             return waveform  # If the audio is already mono, return it as is
 
     def resample(self, waveform, sr):
-        if sr == self.config.common_sr:
-            return waveform
-        resampler = Resample(sr, self.config.common_sr)
-        waveform = resampler(waveform)
+        if sr != self.config.common_sr:
+            resampler = Resample(sr, self.config.common_sr).to(self.device)
+            waveform = resampler(waveform)
         return waveform
 
     def generate_mel_spectrogram(self, audio):
