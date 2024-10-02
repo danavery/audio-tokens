@@ -94,6 +94,7 @@ class ModelTrainer:
         return train_loader, val_loader
 
     def collate_fn(self, batch):
+        # reminder: if using BERT, change these to item[0][:512] and item[1][:512]
         input_ids = [item[0] for item in batch]
         attention_masks = [item[1] for item in batch]
         labels = [item[2] for item in batch]

@@ -4,7 +4,7 @@ from transformers import BertModel, BertConfig
 
 class CustomBertClassifier(nn.Module):
     def __init__(
-        self, vocab_size, num_hidden_layers, num_classes, device, hidden_size=768
+        self, vocab_size, num_hidden_layers, num_classes, hidden_size=768
     ):
         super(CustomBertClassifier, self).__init__()
         config = BertConfig(
@@ -16,8 +16,6 @@ class CustomBertClassifier(nn.Module):
         self.classifier = nn.Linear(
             config.hidden_size, num_classes
         )  # Add a linear layer for classification
-        self.device = device
-        self.to(self.device)
 
     def forward(self, input_ids, attention_mask):
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
