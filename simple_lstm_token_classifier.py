@@ -18,8 +18,8 @@ class SimpleLSTMTokenClassifier(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.fc = nn.Linear(hidden_dim * 2, num_classes)
 
-    def forward(self, x, attention_mask=None):
-        lengths = attention_mask.sum(1)
+    def forward(self, x, attention_masks=None):
+        lengths = attention_masks.sum(1)
         lengths = lengths.cpu().to(torch.int64)  # pack_padded_sequence needs this
 
         embedded = self.embedding(x,)

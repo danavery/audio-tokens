@@ -34,7 +34,7 @@ class ModelDiagnostics:
                     attention_masks.to(self.device),
                     labels.to(self.device),
                 )
-                outputs = self.model(input_ids, attention_mask=attention_masks)
+                outputs = self.model(input_ids, attention_masks=attention_masks)
                 loss = self.criterion(outputs, labels)
                 z[i, j] = loss.item()
 

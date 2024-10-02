@@ -140,7 +140,7 @@ class ModelTrainer:
         attention_masks = metadata["attention_masks"].to(self.device)
         labels = metadata["labels"].to(self.device)
 
-        outputs = self.model(sequences, attention_mask=attention_masks)
+        outputs = self.model(sequences, attention_masks=attention_masks)
         loss = self.criterion(outputs, labels)
         if is_training:
             self._backpropagate(loss)

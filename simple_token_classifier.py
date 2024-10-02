@@ -9,7 +9,7 @@ class SimpleTokenClassifier(nn.Module):
         self.global_pool = nn.AdaptiveAvgPool1d(1)
         self.classifier = nn.Linear(hidden_size, num_classes)
 
-    def forward(self, x, attention_mask=None):
+    def forward(self, x, attention_masks=None):
         x = self.embedding(x)
         x = x.transpose(1, 2)  # [batch, hidden, seq_len]
         x = self.global_pool(x).squeeze(-1)
