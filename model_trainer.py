@@ -94,17 +94,17 @@ class ModelTrainer:
         return train_loader, val_loader
 
     def collate_fn(self, batch):
-        # reminder: if using BERT, change these to item[0][:512] and item[1][:512]
-        input_ids = [item[0] for item in batch]
-        attention_masks = [item[1] for item in batch]
-        labels = [item[2] for item in batch]
+        sequences, metadata = zip(*batch)
+        labels = [item["labels"] for item in metadata]
 
-        input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0).long()
+        sequences = pad_sequence(sequences, batch_first=True, padding_value=0).long()
         attention_masks = pad_sequence(
-            attention_masks, batch_first=True, padding_value=0
+            [torch.ones_like(seq) for seq in sequences],
+            batch_first=True,
+            padding_value=0,
         ).float()
         labels = torch.stack(labels).float()
-        return input_ids, attention_masks, labels
+        return sequences, {"attention_masks": attention_masks, "labels": labels}
 
     def _train_epoch(self):
         self.model.train()
@@ -135,8 +135,12 @@ class ModelTrainer:
         return total_loss / len(data_loader), metrics
 
     def _process_batch(self, batch, is_training):
-        input_ids, attention_masks, labels = (b.to(self.device) for b in batch)
-        outputs = self.model(input_ids, attention_mask=attention_masks)
+        sequences, metadata = batch
+        sequences = sequences.to(self.device)
+        attention_masks = metadata["attention_masks"].to(self.device)
+        labels = metadata["labels"].to(self.device)
+
+        outputs = self.model(sequences, attention_mask=attention_masks)
         loss = self.criterion(outputs, labels)
         if is_training:
             self._backpropagate(loss)
@@ -202,10 +206,12 @@ class ModelTrainer:
     def _save_if_best_model(self, best_metric, val_metrics):
         if val_metrics["mAP"] > best_metric:
             self.logger.info(
-                    f"val mAP of {val_metrics['mAP']:.4f} > {best_metric:.4f}. Saving model."
-                )
+                f"val mAP of {val_metrics['mAP']:.4f} > {best_metric:.4f}. Saving model."
+            )
             best_metric = val_metrics["mAP"]
-            torch.save(self.model.state_dict(), f"output/{self.run_name}-best_model.pth")
+            torch.save(
+                self.model.state_dict(), f"output/{self.run_name}-best_model.pth"
+            )
         return best_metric
 
 
