@@ -3,7 +3,6 @@ import os
 
 import torch
 import torch.nn as nn
-from torch.nn.utils.rnn import pad_sequence
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -68,12 +67,13 @@ class ModelTrainer:
 
     def _initialize_data_loaders(self):
         metadata_manager = AudiosetMetadataProcessor(self.config)
-        train_dataset = TokenizedSpecDataset(
+        dataset_model = TokenizedSpecDataset
+        train_dataset = dataset_model(
             self.config,
             metadata_manager,
             split="train",
         )
-        val_dataset = TokenizedSpecDataset(
+        val_dataset = dataset_model(
             self.config, metadata_manager, split="validation"
         )
 
@@ -82,29 +82,16 @@ class ModelTrainer:
             batch_size=self.config.training_batch_size,
             shuffle=True,
             num_workers=self.config.num_workers,
-            collate_fn=self.collate_fn,
+            collate_fn=dataset_model.collate_fn,
             pin_memory=True,
         )
         val_loader = DataLoader(
             val_dataset,
             batch_size=self.config.training_batch_size,
             num_workers=self.config.num_workers,
-            collate_fn=self.collate_fn,
+            collate_fn=dataset_model.collate_fn,
         )
         return train_loader, val_loader
-
-    def collate_fn(self, batch):
-        sequences, metadata = zip(*batch)
-        labels = [item["labels"] for item in metadata]
-
-        sequences = pad_sequence(sequences, batch_first=True, padding_value=0).long()
-        attention_masks = pad_sequence(
-            [torch.ones_like(seq) for seq in sequences],
-            batch_first=True,
-            padding_value=0,
-        ).float()
-        labels = torch.stack(labels).float()
-        return sequences, {"attention_masks": attention_masks, "labels": labels}
 
     def _train_epoch(self):
         self.model.train()
@@ -140,7 +127,7 @@ class ModelTrainer:
         attention_masks = metadata["attention_masks"].to(self.device)
         labels = metadata["labels"].to(self.device)
 
-        outputs = self.model(sequences, attention_masks=attention_masks)
+        outputs = self.model(sequences, attention_masks=attention_masks, )
         loss = self.criterion(outputs, labels)
         if is_training:
             self._backpropagate(loss)

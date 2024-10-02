@@ -4,10 +4,11 @@ from typing import Dict, Tuple
 
 import numpy as np
 import torch
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 
-from audioset_metadata_processor import AudiosetMetadataProcessor
 from audio_tokens_config import AudioTokensConfig
+from audioset_metadata_processor import AudiosetMetadataProcessor
 
 
 class TokenizedSpecDataset(Dataset):
@@ -29,7 +30,7 @@ class TokenizedSpecDataset(Dataset):
             split_data = json.load(f)
         return split_data[self.split]
 
-    def _load_tokenized_specs(self) -> None:
+    def _load_tokenized_specs(self):
         tokenized_spec_files = []
         base_path = (
             self.config.tokenized_train_dir
@@ -55,7 +56,21 @@ class TokenizedSpecDataset(Dataset):
         ytid = os.path.splitext(os.path.basename(filepath))[0]
         label_indices = self.data_manager.ytid_labels[ytid]
 
-        label_tensor = torch.zeros(self.config.num_classes, dtype=torch.float)
-        label_tensor[label_indices] = 1.0
+        labels = torch.zeros(self.config.num_classes, dtype=torch.float)
+        labels[label_indices] = 1.0
 
-        return seq, {"labels": label_tensor}
+        return seq, {"labels": labels}
+
+    @staticmethod
+    def collate_fn(batch):
+        sequences, metadata = zip(*batch)
+        labels = [item["labels"] for item in metadata]
+
+        sequences = pad_sequence(sequences, batch_first=True, padding_value=0).long()
+        attention_masks = pad_sequence(
+            [torch.ones_like(seq) for seq in sequences],
+            batch_first=True,
+            padding_value=0,
+        ).float()
+        labels = torch.stack(labels).float()
+        return sequences, {"attention_masks": attention_masks, "labels": labels}
