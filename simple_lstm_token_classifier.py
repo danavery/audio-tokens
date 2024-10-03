@@ -18,14 +18,25 @@ class SimpleLSTMTokenClassifier(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.fc = nn.Linear(hidden_dim * 2, num_classes)
 
-    def forward(self, x, attention_masks=None):
+    def forward(self, x, use_precomputed_embeddings=False, attention_masks=None):
         lengths = attention_masks.sum(1)
         lengths = lengths.cpu().to(torch.int64)  # pack_padded_sequence needs this
 
-        embedded = self.embedding(x,)
+        if not use_precomputed_embeddings:
+            # Use the embedding layer if tokens are provided
+            embedded = self.embedding(x)
+        else:
+            # Use the provided embeddings directly
+            embedded = x
+
+        # Compact LSTM weights for better memory management (fixes warning)
+        self.lstm.flatten_parameters()
+
+        embedded = embedded.float()
         packed = nn.utils.rnn.pack_padded_sequence(embedded, lengths, batch_first=True, enforce_sorted=False)
 
         _, (hidden, _) = self.lstm(packed)
         last_output = torch.cat((hidden[-2], hidden[-1]), dim=1)
+
         last_output = self.dropout(last_output)
         return self.fc(last_output)

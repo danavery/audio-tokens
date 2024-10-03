@@ -4,17 +4,15 @@ import os
 import torch
 import torch.nn as nn
 from torch.optim import AdamW
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import wandb
 from audio_tokens_config import AudioTokensConfig
-from audioset_metadata_processor import AudiosetMetadataProcessor
+from data_loader_creator import DataLoaderCreator
+from metrics_calculator import MetricsCalculator
 from model_diagnostics import ModelDiagnostics
 from models import get_model
 from set_seed import set_seed
-from tokenized_spec_dataset import TokenizedSpecDataset
-from metrics_calculator import MetricsCalculator
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -44,7 +42,7 @@ class ModelTrainer:
         self.run_name = self._initialize_wandb()
 
     def train(self):
-        self.train_loader, self.val_loader = self._initialize_data_loaders()
+        self.train_loader, self.val_loader = self._create_data_loaders()
         best_metric = 0
 
         for epoch in range(self.config.epochs):
@@ -65,32 +63,9 @@ class ModelTrainer:
                 break
         return val_loss, val_metrics
 
-    def _initialize_data_loaders(self):
-        metadata_manager = AudiosetMetadataProcessor(self.config)
-        dataset_model = TokenizedSpecDataset
-        train_dataset = dataset_model(
-            self.config,
-            metadata_manager,
-            split="train",
-        )
-        val_dataset = dataset_model(
-            self.config, metadata_manager, split="validation"
-        )
-
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=self.config.training_batch_size,
-            shuffle=True,
-            num_workers=self.config.num_workers,
-            collate_fn=dataset_model.collate_fn,
-            pin_memory=True,
-        )
-        val_loader = DataLoader(
-            val_dataset,
-            batch_size=self.config.training_batch_size,
-            num_workers=self.config.num_workers,
-            collate_fn=dataset_model.collate_fn,
-        )
+    def _create_data_loaders(self):
+        dlc = DataLoaderCreator(self.config)
+        train_loader, val_loader = dlc.get_dataloaders()
         return train_loader, val_loader
 
     def _train_epoch(self):
@@ -127,7 +102,11 @@ class ModelTrainer:
         attention_masks = metadata["attention_masks"].to(self.device)
         labels = metadata["labels"].to(self.device)
 
-        outputs = self.model(sequences, attention_masks=attention_masks, )
+        outputs = self.model(
+            sequences,
+            attention_masks=attention_masks,
+            use_precomputed_embeddings=self.config.use_precomputed_embeddings,
+        )
         loss = self.criterion(outputs, labels)
         if is_training:
             self._backpropagate(loss)
