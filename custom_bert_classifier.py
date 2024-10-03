@@ -17,8 +17,8 @@ class CustomBertClassifier(nn.Module):
             config.hidden_size, num_classes
         )  # Add a linear layer for classification
 
-    def forward(self, input_ids, attention_masks):
-        outputs = self.bert(input_ids=input_ids, attention_mask=attention_masks)
+    def forward(self, input_ids, options):
+        outputs = self.bert(input_ids=input_ids, attention_mask=options["attention_masks"])
         cls_output = outputs.last_hidden_state[
             :, 0, :
         ]  # Use the [CLS] token representation

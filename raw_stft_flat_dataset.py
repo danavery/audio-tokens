@@ -9,10 +9,9 @@ from torch.utils.data import Dataset
 
 from audio_tokens_config import AudioTokensConfig
 from audioset_metadata_processor import AudiosetMetadataProcessor
-import torch.nn.functional as F
 
 
-class RawSTFTDataset(Dataset):
+class RawSTFTFlatDataset(Dataset):
     def __init__(
         self,
         config: AudioTokensConfig,
@@ -54,28 +53,17 @@ class RawSTFTDataset(Dataset):
 
         labels = torch.zeros(self.config.num_classes, dtype=torch.float)
         labels[label_indices] = 1.0
-
         return stft, {"labels": labels}  # stft, attention_mask, labels
 
     @staticmethod
     def collate_fn(batch):
-        sequences, metadata = zip(*batch)
-        labels = [item["labels"] for item in metadata]
+        stfts, labels = zip(*batch)
+        stfts_padded = pad_sequence(stfts, batch_first=True, padding_value=0)
+        # Flatten each STFT feature tensor and stack them into a single tensor
+        stfts_flattened = [stft.flatten() for stft in stfts_padded]
+        inputs = torch.stack(stfts_flattened)
 
-        # Find the maximum number of time steps (second dimension) in this batch
-        max_time_steps = max([seq.size(1) for seq in sequences])
+        # Convert labels to a tensor
+        labels_stacked = torch.stack([label_dict["labels"] for label_dict in labels])
 
-        # Pad each sequence along the second dimension (time steps) to the maximum size in the batch
-        padded_sequences = [F.pad(seq, (0, max_time_steps - seq.size(1)), "constant", 0) for seq in sequences]
-
-        # Now pad the sequences along the first dimension (frequency bins)
-        sequences = pad_sequence(padded_sequences, batch_first=True, padding_value=0).float()
-
-        # Create attention masks based on the actual lengths of the sequences before padding
-        attention_masks = [torch.ones(seq.size(1)) for seq in padded_sequences]
-        attention_masks = pad_sequence(attention_masks, batch_first=True, padding_value=0).float()
-
-        # Stack the labels
-        labels = torch.stack(labels).float()
-
-        return sequences, {"attention_masks": attention_masks, "labels": labels}
+        return inputs, {"labels": labels_stacked}

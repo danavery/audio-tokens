@@ -1,6 +1,7 @@
 import torch.nn as nn
 
 from audio_tokens_config import AudioTokensConfig
+from baseline_MLP_classifier import BaselineMLPClassifier
 from custom_bert_classifier import CustomBertClassifier
 from simple_lstm_token_classifier import SimpleLSTMTokenClassifier
 from simple_token_classifier import SimpleTokenClassifier
@@ -28,6 +29,10 @@ def get_model(config: AudioTokensConfig) -> nn.Module:
             num_hidden_layers=config.num_layers,
             num_classes=config.num_classes,
             hidden_size=config.hidden_size,
+        )
+    elif config.model_type == "baseline":
+        return BaselineMLPClassifier(
+            num_classes=config.num_classes,
         )
     else:
         raise ValueError(f"Unknown model type: {config.model_type}")

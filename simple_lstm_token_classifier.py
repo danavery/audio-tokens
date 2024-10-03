@@ -18,11 +18,11 @@ class SimpleLSTMTokenClassifier(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.fc = nn.Linear(hidden_dim * 2, num_classes)
 
-    def forward(self, x, use_precomputed_embeddings=False, attention_masks=None):
-        lengths = attention_masks.sum(1)
+    def forward(self, x, options):
+        lengths = options["attention_masks"].sum(1)
         lengths = lengths.cpu().to(torch.int64)  # pack_padded_sequence needs this
 
-        if not use_precomputed_embeddings:
+        if not options["use_precomputed_embeddings"]:
             # Use the embedding layer if tokens are provided
             embedded = self.embedding(x)
         else:

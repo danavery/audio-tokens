@@ -33,7 +33,7 @@ class ModelTrainer:
         )
 
         self.model = get_model(self.config).to(self.device)
-        self.optimizer = self._initialize_optimizer()
+        self.optimizer = None
         self.criterion = nn.BCEWithLogitsLoss()
         self.metrics_calculator = MetricsCalculator()
 
@@ -97,25 +97,48 @@ class ModelTrainer:
         return total_loss / len(data_loader), metrics
 
     def _process_batch(self, batch, is_training):
-        sequences, metadata = batch
-        sequences = sequences.to(self.device)
-        attention_masks = metadata["attention_masks"].to(self.device)
+        inputs, metadata = batch
+        inputs = inputs.to(self.device)
+        attention_masks = metadata.get("attention_masks", torch.tensor([])).to(self.device)
         labels = metadata["labels"].to(self.device)
 
         outputs = self.model(
-            sequences,
-            attention_masks=attention_masks,
-            use_precomputed_embeddings=self.config.use_precomputed_embeddings,
+            inputs,
+            {
+                "attention_masks": attention_masks,
+                "use_precomputed_embeddings": self.config.use_precomputed_embeddings,
+            },
         )
+        if self.optimizer is None:
+            self.optimizer = self._initialize_optimizer()
+        # print(f"Output shape: {outputs.shape}")
+        # print(f"Output min/max: {outputs.min():.4f}/{outputs.max():.4f}")
         loss = self.criterion(outputs, labels)
+        # print(f"Loss: {loss.item():.4f}")
         if is_training:
             self._backpropagate(loss)
-        return loss.item(), torch.sigmoid(outputs).detach(), labels
+        predictions = torch.sigmoid(outputs).detach()
+        # During evaluation
+
+        # print(f"Sample predictions: {predictions[0, :10]}")
+        # print(f"Sample labels: {labels[0, :10]}")
+        return loss.item(), predictions, labels
 
     def _backpropagate(self, loss):
         self.optimizer.zero_grad()
         loss.backward()
+
+        # for name, param in self.model.named_parameters():
+        #     if param.dim() > 1:
+        #         print(f"{name} - before: {param.data[0,0].item():.4f}")
+        #     else:
+        #         print(f"{name} - before: {param.data[0].item():.4f}")
         self.optimizer.step()
+        # for name, param in self.model.named_parameters():
+        #     if param.dim() > 1:
+        #         print(f"{name} - after: {param.data[0,0].item():.4f}")
+        #     else:
+        #         print(f"{name} - after: {param.data[0].item():.4f}")
 
     def _initialize_optimizer(self):
         return AdamW(self.model.parameters(), lr=self.config.learning_rate)
