@@ -57,7 +57,7 @@ class ManualTester:
         seq = torch.tensor(np.array([seq])).to(self.device)
         print(seq.shape)
         seq = seq[:, :512]
-        outputs = self.model(seq, attention_mask=torch.ones_like(seq).to(self.device))
+        outputs = self.model(seq, {"attention_masks": torch.ones_like(seq).to(self.device)})
         outputs = torch.sigmoid(outputs)
         sorted_values, sorted_indices = torch.sort(outputs, descending=True)  # Get top 10 predictions
         top_N_values = sorted_values[0, :self.n_results]
@@ -173,8 +173,8 @@ class ManualTester:
 
 
 if __name__ == "__main__":
-    model_file = "output/sage-blaze-106-best_model.pth"
-    ytid = "i50igBzmCdc"
+    model_file = "output/no-wandb-best_model.pth"
+    ytid = "--aO5cdqSAg"
     config = AudioTokensConfig()
     tester = ManualTester(config, model_file)
     tester.run(ytid)
