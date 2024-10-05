@@ -12,12 +12,18 @@ from tqdm import tqdm
 
 from audio_tokens_config import AudioTokensConfig
 
+torch.set_num_threads(16)
+
 
 class SpectrogramProcessor:
     def __init__(self, config):
         self.config = config
         self.logger = logging.getLogger(__name__)
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+        self.device = torch.device(
+            "cuda"
+            if torch.cuda.is_available()
+            else "mps" if torch.backends.mps.is_available() else "cpu"
+        )
 
         self.spec_transformer = MelSpectrogram(
             sample_rate=self.config.common_sr,
@@ -80,7 +86,9 @@ class SpectrogramProcessor:
 
     def find_audio_file(self, ytid):
         for source_set in self.config.audio_source_sets:
-            audio_file_path = Path(f"{self.config.audio_source_path}/{source_set}/{ytid[:2]}/{ytid}.flac")
+            audio_file_path = Path(
+                f"{self.config.audio_source_path}/{source_set}/{ytid[:2]}/{ytid}.flac"
+            )
             if audio_file_path.exists():
                 return audio_file_path
         self.logger.debug(f"Audio file not found: {audio_file_path}")
@@ -90,7 +98,7 @@ class SpectrogramProcessor:
         try:
             waveform, sr = torchaudio.load(audio_file_path)
         except RuntimeError as e:
-            if (str(e) == "Failed to decode audio."):
+            if str(e) == "Failed to decode audio.":
                 self.logger.info(f"skipping {audio_file_path}: {e}")
                 return None
         waveform = waveform.to(self.device)
@@ -141,3 +149,7 @@ class SpectrogramProcessor:
 if __name__ == "__main__":
     config = AudioTokensConfig()
     SpectrogramProcessor(config).run()
+    # sp = SpectrogramProcessor(config)
+    # spec = sp.populate_specs(["JLuKCkRElnA"])
+    # np.save("test.npy", spec[0]["spec"].cpu())
+    # print(spec)
