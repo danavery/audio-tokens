@@ -69,9 +69,31 @@ class AudiosetMetadataProcessor:
             self.logger.info(
                 f"Loaded segment data for {len(self.ytid_labels)} YouTube IDs"
             )
+        no_labels = sum(1 for labels in self.ytid_labels.values() if not labels)
+        self.logger.info(f"Number of YouTube IDs with no labels: {no_labels}")
+
+        label_counts = [len(labels) for labels in self.ytid_labels.values()]
+        avg_labels = sum(label_counts) / len(label_counts)
+        self.logger.info(f"Average number of labels per YouTube ID: {avg_labels:.2f}")
+        self.logger.info(f"Max number of labels for a YouTube ID: {max(label_counts)}")
+        self.logger.info(f"Min number of labels for a YouTube ID: {min(label_counts)}")
 
     def get_all_ytids(self) -> List[str]:
         return list(self.ytid_labels.keys())
 
     def get_ytid_labels(self, ytid: str) -> List[int]:
         return self.ytid_labels.get(ytid, [])
+
+
+if __name__ == "__main__":
+    config = AudioTokensConfig()
+    processor = AudiosetMetadataProcessor(config)
+    index = 3
+    ytid = processor.get_all_ytids()[index]
+    label_indexes = processor.get_ytid_labels(ytid)
+    print(ytid)
+    print(label_indexes)
+    labels = [processor.index_label[index] for index in label_indexes]
+    print(labels)
+    names = [processor.label_name[label] for label in labels]
+    print(names)
