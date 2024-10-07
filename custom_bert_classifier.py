@@ -3,9 +3,7 @@ from transformers import BertModel, BertConfig
 
 
 class CustomBertClassifier(nn.Module):
-    def __init__(
-        self, vocab_size, num_hidden_layers, num_classes, hidden_size=768
-    ):
+    def __init__(self, vocab_size, num_hidden_layers, num_classes, hidden_size=768):
         super(CustomBertClassifier, self).__init__()
         config = BertConfig(
             vocab_size=vocab_size,
@@ -18,7 +16,11 @@ class CustomBertClassifier(nn.Module):
         )  # Add a linear layer for classification
 
     def forward(self, input_ids, options):
-        outputs = self.bert(input_ids=input_ids, attention_mask=options["attention_masks"])
+        # print(options["attention_masks"].shape)
+        outputs = self.bert(
+            input_ids=input_ids[:, :512],
+            attention_mask=options["attention_masks"][:, :512],
+        )
         cls_output = outputs.last_hidden_state[
             :, 0, :
         ]  # Use the [CLS] token representation
