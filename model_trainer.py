@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 import wandb
 from audio_tokens_config import AudioTokensConfig
-from data_loader_creator import DataLoaderCreator
+from datasets import DataLoaderCreator
 from metrics_calculator import MetricsCalculator
 from model_diagnostics import ModelDiagnostics
 from model_utils import get_model

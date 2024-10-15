@@ -4,9 +4,9 @@ from torch.utils.data import DataLoader
 
 from audio_tokens_config import AudioTokensConfig
 from audioset_metadata_processor import AudiosetMetadataProcessor
-from raw_stft_dataset import RawSTFTDataset
-from raw_stft_flat_dataset import RawSTFTFlatDataset
-from tokenized_spec_dataset import TokenizedSpecDataset
+from .raw_stft_dataset import RawSTFTDataset
+from .raw_stft_flat_dataset import RawSTFTFlatDataset
+from .tokenized_spec_dataset import TokenizedSpecDataset
 
 
 class DataLoaderCreator:

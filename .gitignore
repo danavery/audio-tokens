@@ -7,6 +7,7 @@ __pycache__/
 .envrc
 processed/
 spectrograms/
+spectrograms_big/
 tokenized/
 tokenized_audio/
 output/
