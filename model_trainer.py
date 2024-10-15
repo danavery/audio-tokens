@@ -11,7 +11,7 @@ from audio_tokens_config import AudioTokensConfig
 from data_loader_creator import DataLoaderCreator
 from metrics_calculator import MetricsCalculator
 from model_diagnostics import ModelDiagnostics
-from models import get_model
+from model_utils import get_model
 from set_seed import set_seed
 
 logging.basicConfig(

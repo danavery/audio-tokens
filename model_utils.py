@@ -1,11 +1,13 @@
 import torch.nn as nn
 
 from audio_tokens_config import AudioTokensConfig
-from baseline_MLP_classifier import BaselineMLPClassifier
-from cnn_classifier import CNNClassifier
-from custom_bert_classifier import CustomBertClassifier
-from simple_lstm_token_classifier import SimpleLSTMTokenClassifier
-from simple_token_classifier import SimpleTokenClassifier
+from models import (
+    BaselineMLPClassifier,
+    CNNClassifier,
+    CustomBertClassifier,
+    SimpleLSTMTokenClassifier,
+    SimpleTokenClassifier,
+)
 
 
 def get_model(config: AudioTokensConfig) -> nn.Module:
@@ -32,9 +34,7 @@ def get_model(config: AudioTokensConfig) -> nn.Module:
             hidden_size=config.hidden_size,
         )
     elif config.model_type == "cnn":
-        return CNNClassifier(
-            num_classes=config.num_classes
-        )
+        return CNNClassifier(num_classes=config.num_classes)
     elif config.model_type == "baseline":
         return BaselineMLPClassifier(
             num_classes=config.num_classes,
