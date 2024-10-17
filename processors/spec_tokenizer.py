@@ -6,13 +6,13 @@ from pathlib import Path
 import faiss
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import stats
 import torch
 import torch.nn as nn
+from scipy import stats
 from tqdm import tqdm
 
 from audio_tokens_config import AudioTokensConfig
-from set_seed import set_seed
+from utils.set_seed import set_seed
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"

@@ -15,7 +15,7 @@ from audio_tokens_config import AudioTokensConfig
 torch.set_num_threads(16)
 
 
-class SpectrogramProcessor:
+class SpectrogramGenerator:
     def __init__(self, config):
         self.config = config
         self.logger = logging.getLogger(__name__)
@@ -148,7 +148,7 @@ class SpectrogramProcessor:
 
 if __name__ == "__main__":
     config = AudioTokensConfig()
-    SpectrogramProcessor(config).run()
+    SpectrogramGenerator(config).run()
     # sp = SpectrogramProcessor(config)
     # spec = sp.populate_specs(["JLuKCkRElnA"])
     # np.save("test.npy", spec[0]["spec"].cpu())

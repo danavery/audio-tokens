@@ -9,10 +9,10 @@ from tqdm import tqdm
 import wandb
 from audio_tokens_config import AudioTokensConfig
 from datasets import DataLoaderCreator
-from metrics_calculator import MetricsCalculator
 from model_diagnostics import ModelDiagnostics
-from model_utils import get_model
-from set_seed import set_seed
+from utils.metrics_calculator import MetricsCalculator
+from utils.model_utils import get_model
+from utils.set_seed import set_seed
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -41,7 +41,7 @@ class ModelTrainer:
         self.diagnostic_interval = 1
         self.run_name = self._initialize_wandb()
 
-    def train(self):
+    def run(self):
         self.train_loader, self.val_loader = self._create_data_loaders()
         best_metric = 0
 
@@ -207,7 +207,7 @@ class ModelTrainer:
 if __name__ == "__main__":
     config = AudioTokensConfig()
     trainer = ModelTrainer(config)
-    val_loss, val_metrics = trainer.train()
+    val_loss, val_metrics = trainer.run()
     logging.getLogger().info(
         f"Final Validation Loss: {val_loss:.4f}, Final Validation mAP: {val_metrics['mAP']:.4f}"
     )

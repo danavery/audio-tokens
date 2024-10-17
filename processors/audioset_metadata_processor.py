@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from audio_tokens_config import AudioTokensConfig
-from set_seed import set_seed
+from utils.set_seed import set_seed
 
 
 class AudiosetMetadataProcessor:

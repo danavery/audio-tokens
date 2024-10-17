@@ -11,7 +11,7 @@ from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
 from audio_tokens_config import AudioTokensConfig
-from set_seed import set_seed
+from utils.set_seed import set_seed
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
