@@ -28,14 +28,13 @@ class AudioTokensConfig:
 
     # SpectrogramProcessor
     audio_source_path: str = "/media/davery/audioset"
-    audio_source_sets: List[str] = field(default_factory=lambda: ["bal_train", "unbal_train"])
-    dest_spec_path: Path = Path("spectrograms_big/")
+    audio_source_sets: List[str] = field(default_factory=lambda: ["bal_train",])
+    dest_spec_path: Path = Path("spectrograms")
     common_sr: int = 22050
     normalize: bool = False
     n_mels: int = 64
     n_fft: int = 512
     hop_length: int = 128
-    n_segments: int = 0
     spectrogram_batch_size: int = 5000
 
     # ClusterCreator and ModelTrainer
@@ -50,7 +49,7 @@ class AudioTokensConfig:
 
     # ClusterCreator and SpecTokenizer
     centroids_path: Path = Path("output/centroids.npy")
-    source_spec_path: Path = Path("spectrograms_big/")
+    source_spec_path: Path = Path("spectrograms/")
 
     # SpecTokenizer config
     dest_tokenized_path: str = "tokenized_audio/"
@@ -58,15 +57,15 @@ class AudioTokensConfig:
 
     # ModelTrainer
     use_wandb: bool = True
-    tokenized_train_dir: str = "tokenized_audio/train/"
-    tokenized_val_dir: str = "tokenized_audio/validation/"
-    model_type: str = "bert"
+    wandb_project: str = "audio-tokens"
+    tokenized_train_dir: str = "spectrograms/train/"
+    tokenized_val_dir: str = "spectrograms/validation/"
+    model_type: str = "multilayer_cnn"
     num_layers: int = 1
     epochs: int = 100
     hidden_size: int = 768
-    training_batch_size: int = 32
     num_workers: int = 8
-    learning_rate: float = 1e-5
+    learning_rate: float = 1e-4
     num_classes: int = 543
     prediction_threshold: float = 0.2
     lstm_embed_dim: int = 256
