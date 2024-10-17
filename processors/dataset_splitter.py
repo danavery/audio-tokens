@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List
 
 from audio_tokens_config import AudioTokensConfig
-from audioset_metadata_processor import AudiosetMetadataProcessor
+from .audioset_metadata_processor import AudiosetMetadataProcessor
 
 
 class DatasetSplitter:

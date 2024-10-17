@@ -1,4 +1,5 @@
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
@@ -6,6 +7,8 @@ from typing import List
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 @dataclass
@@ -15,8 +18,8 @@ class AudioTokensConfig:
     # AudiosetMetadataProcessor
     csv_index_files: List[str] = field(
         default_factory=lambda: [
-            "metadata/balanced_train_segments.csv",
-            "metadata/unbalanced_train_segments.csv",
+            f"{BASE_DIR}/metadata/balanced_train_segments.csv",
+            # f"{BASE_DIR}/metadata/unbalanced_train_segments.csv",
         ]
     )
     ontology_json_file: str = "metadata/ontology.json"
@@ -24,12 +27,12 @@ class AudioTokensConfig:
     validation_ratio: float = 0.1  # portion of dataset to use as validation set
 
     # AudiosetMetadataProcessor and SpectrogramProcessor
-    split_file: str = "output/bal_train_data_split.json"
+    split_file: str = f"{BASE_DIR}/output/bal_train_data_split.json"
 
     # SpectrogramProcessor
     audio_source_path: str = "/media/davery/audioset"
     audio_source_sets: List[str] = field(default_factory=lambda: ["bal_train",])
-    dest_spec_path: Path = Path("spectrograms")
+    dest_spec_path: Path = Path(f"{BASE_DIR}/spectrograms")
     common_sr: int = 22050
     normalize: bool = False
     n_mels: int = 64
@@ -48,23 +51,24 @@ class AudioTokensConfig:
     clustering_batch_size: int = 10000
 
     # ClusterCreator and SpecTokenizer
-    centroids_path: Path = Path("output/centroids.npy")
-    source_spec_path: Path = Path("spectrograms/")
+    centroids_path: Path = Path(f"{BASE_DIR}/output/centroids.npy")
+    source_spec_path: Path = Path(f"{BASE_DIR}/spectrograms/")
 
     # SpecTokenizer config
-    dest_tokenized_path: str = "tokenized_audio/"
+    dest_tokenized_path: str = f"{BASE_DIR}/tokenized_audio/"
     tokenizer_batch_size: int = 10000
 
     # ModelTrainer
-    use_wandb: bool = True
+    use_wandb: bool = False
     wandb_project: str = "audio-tokens"
-    tokenized_train_dir: str = "spectrograms/train/"
-    tokenized_val_dir: str = "spectrograms/validation/"
-    model_type: str = "multilayer_cnn"
+    tokenized_train_dir: str = f"{BASE_DIR}/tokenized_audio/train/"
+    tokenized_val_dir: str = f"{BASE_DIR}/tokenized_audio/validation/"
+    model_type: str = "lstm"
     num_layers: int = 1
     epochs: int = 100
     hidden_size: int = 768
     num_workers: int = 8
+    training_batch_size = 8
     learning_rate: float = 1e-4
     num_classes: int = 543
     prediction_threshold: float = 0.2

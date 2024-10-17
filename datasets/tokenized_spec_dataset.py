@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 
 from audio_tokens_config import AudioTokensConfig
-from audioset_metadata_processor import AudiosetMetadataProcessor
+from processors.audioset_metadata_processor import AudiosetMetadataProcessor
 
 
 class TokenizedSpecDataset(Dataset):

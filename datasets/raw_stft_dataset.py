@@ -4,12 +4,12 @@ from typing import Dict, Tuple
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 
 from audio_tokens_config import AudioTokensConfig
-from audioset_metadata_processor import AudiosetMetadataProcessor
-import torch.nn.functional as F
+from processors.audioset_metadata_processor import AudiosetMetadataProcessor
 
 
 class RawSTFTDataset(Dataset):
