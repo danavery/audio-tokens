@@ -19,7 +19,7 @@ class AudioTokensConfig:
     csv_index_files: List[str] = field(
         default_factory=lambda: [
             f"{BASE_DIR}/metadata/balanced_train_segments.csv",
-            # f"{BASE_DIR}/metadata/unbalanced_train_segments.csv",
+            # f"{BASE_DIR}/metadata/unbalanced_train_segments.csv", # uncomment this to use unbalanced_train dataset
         ]
     )
     ontology_json_file: str = "metadata/ontology.json"
@@ -31,7 +31,7 @@ class AudioTokensConfig:
 
     # SpectrogramProcessor
     audio_source_path: str = "/media/davery/audioset"
-    audio_source_sets: List[str] = field(default_factory=lambda: ["bal_train",])
+    audio_source_sets: List[str] = field(default_factory=lambda: ["bal_train",])  # add "unbal_train" to this if using the unbalanced_train dataset
     dest_spec_path: Path = Path(f"{BASE_DIR}/spectrograms")
     common_sr: int = 22050
     normalize: bool = False

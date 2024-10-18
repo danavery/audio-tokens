@@ -110,3 +110,62 @@ Hyperparameters:
 * *epochs*: 20
 * *batch_size*: 16. Because that's what my RTX 3070 can handle in 8GB of VRAM with a standard 12-layer BERT model.
 * *learning_rate*: 5e-5. This should probably not be a constant, but we have to start somewhere.
+
+## Setup
+
+### Get the code and dependencies
+
+* `git@github.com:danavery/audio-tokens.git`
+* `cd audio-tokens`
+* `conda env create --name audio-tokens --file=environment.yml`
+
+### Get AudioSet
+
+AudioSet is a set of labeled 10-second audio clips from YouTube. Unfortunately Google doesn't make the audio clips easily available, so we have to go to a user-contributed Hugging Face repository.
+
+You're going to need a lot of space. Something like 2TB for the initial tar download, and another 2TB for the expanded audio files.
+
+* Install the Hugging Face CLI: `pipx install huggingface_hub[cli]` if you use pipx (like me) or `pip install -U "huggingface_hub[cli]"`
+* `cd` to wherever you have the first 2TB of extra space. I'll call this [audioset].
+* `huggingface-cli download agkphysics/AudioSet --local-dir . --repo-type dataset`. This will take a while.
+* `cd` to the top of the project directory
+* `mkdir metadata`
+* `cp [audioset]/data/*json [audioset]/data/*.csv metadata/` to move the AudioSet ontology and index files to the project
+
+Now you need to untar all those .tar files into individual audio files:
+
+* `cd [audioset]/data`
+* update BASE_DEST_DIR in tools/audioset_expander.py to wherever you have the second 2TB
+* python tools/audio_expander.py. This will take a while. It's going to expand and spread out all the audio files into a series of subdirectories to keep from overwhelming the filesystem.
+
+### Create train and dev datasets
+
+* Edit audio_tokens_config.py. (This assumes you want to start by using the small balanced_train dataset to start.)
+    * Change `audio_source_path` to your expanded audio file root directory.
+    * Change `dataset_ratio` to the portion (0.0-1.0) of the balanced_training set you want to use for train+val.
+    * Change `validation_ratio` to the portion (0.0-1.0) of the above dataset to use for validation
+
+
+* `python -m processors.dataset_splitter` to create the train/val split csv in the `metadata` directory
+
+### Run the basic task
+
+* `python run_pipeline.py` to train an LSTM with tokenized audio and some basic settings
+
+### More Configuration
+
+All config is in `audio_tokens_config.py`
+
+* `n_fft`, `n_fft`, `hop_length` to change how the spectrograms are generated. Set `normalize` to enable per-spectrogram normalization
+* `vocab_size` to change the number of token cluster to use
+* `use_convolution`, `num_kernels`, and `kernel_size` to run 1D convolution on the STFT inputs. I'm not sure this helps at all
+* `model_type`: one of `baseline`, `cnn`, `bert`, `lstm`, `simple`. Models are in `models/`.
+* For LSTM: `lstm_embed_dim` and `lstm_hidden_dim`
+* For other models: `hidden_size`
+* `dropout` is also an option for `lstm` and `bert`
+* `dataset_type`: Dataset classes reside in `dataset/`
+    * For models that use tokenization (`lstm`, `bert`, `simple`), use `TokenizedSpecDataset`
+    * For models that use individual 1D STFT vectors (`baseline`), use `RawSTFTFlatDataset`
+    * For models that use 2D spectrograms as input (`cnn`), use `RawSTFTDataset`
+    * Special case: If you want to feed the raw 1D STFT vectors into BERT, using them as token embeddings, set `use_precomputed_embeddings` to True
+    * `layers` is the number of layers to use for models that have layers as a parameter ('bert', 'lstm')
