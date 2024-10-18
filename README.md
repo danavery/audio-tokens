@@ -2,7 +2,7 @@
 
 ### tl;dr
 
-[18 Oct 2024: The setup instructions below are brand new. The pipeline descriptions below have also been brought up to date. Too much detail about development so far available at [stuff.danavery.com](https://stuff.danavery.com/tags/audio-tokens/], including a (temporary?) wrap-up post.
+[18 Oct 2024: The setup instructions below are brand new. The pipeline descriptions below have also been brought up to date. Too much detail about development so far available at [stuff.danavery.com](https://stuff.danavery.com/tags/audio-tokens/], including a (temporary?) wrap-up post.]
 
 Cluster STFT vectors to create an audio token vocabulary, then send token sequences for each example audio file through a transformer or LSTM for classification.
 
