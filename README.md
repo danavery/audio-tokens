@@ -1,8 +1,8 @@
 ## Description
 
-My current project: audio tokens!
-
 ### tl;dr
+
+[18 Oct 2024: The setup instructions below are _not_ out of date. The description below still is.]
 
 [24 Sep 2024: The below is slightly out of date, and will be updated soon. The scope has been expanded to use parts of the AudioSet unbalanced training set as well as the balanced one, and the train/dev split doesn't use the first char of the youtube id any more. data_splitter.py no longer exists--splitting has been moved into AudiosetMetadataProcessor. Some directory and config names have been changed, in some cases to be less ambiguous. Also I've been just feeding things into an LSTM for now instead of a transformer. FAR too much detail about development so far available at [stuff.danavery.com](https://stuff.danavery.com/tags/audio-tokens/)]
 
